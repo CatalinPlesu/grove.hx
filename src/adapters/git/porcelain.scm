@@ -1,0 +1,94 @@
+(require (prefix-in git. "../../domain/git.scm"))
+(require (prefix-in path. "../../domain/path.scm"))
+
+(provide parse)
+
+(define (strip-terminal-lf text)
+  (define length (string-length text))
+  (if (and (> length 0)
+           (char=? (string-ref text (- length 1)) #\newline))
+      (substring text 0 (- length 1))
+      text))
+
+(define (string-prefix? prefix text)
+  (and (<= (string-length prefix) (string-length text))
+       (string=? prefix (substring text 0 (string-length prefix)))))
+
+(define (code-contains? code character)
+  (or (char=? character (string-ref code 0))
+      (char=? character (string-ref code 1))))
+
+(define CONFLICT-CODES '("DD" "AU" "UD" "UA" "DU" "AA" "UU"))
+
+(define (source-bearing? code)
+  (or (code-contains? code #\R)
+      (code-contains? code #\C)))
+
+(define (decode-status code)
+  (cond
+    [(member code CONFLICT-CODES)
+     'conflicted]
+    [(code-contains? code #\D) 'deleted]
+    [(code-contains? code #\R) 'renamed]
+    [(code-contains? code #\C) 'copied]
+    [(code-contains? code #\A) 'added]
+    [(string=? code "??") 'untracked]
+    [(code-contains? code #\T) 'type-changed]
+    [(code-contains? code #\M) 'modified]
+    [else #f]))
+
+(define (workspace-id prefix path)
+  (and (string-prefix? prefix path)
+       (let ([id (substring path (string-length prefix) (string-length path))])
+         (and (path.valid-id? id) id))))
+
+(define (directory-record? path)
+  (and (> (string-length path) 0)
+       (char=? (string-ref path (- (string-length path) 1)) #\/)))
+
+(define (without-terminal-slash path)
+  (substring path 0 (- (string-length path) 1)))
+
+(define (parse-records output workspace-prefix)
+  (let loop ([records (split-many output "\0")] [path-statuses '()])
+    (cond
+      [(null? records) (reverse path-statuses)]
+      [(string=? (car records) "")
+       (if (null? (cdr records))
+           (reverse path-statuses)
+           #f)]
+      [else
+       (define record (car records))
+       (define code (substring record 0 2))
+       (define raw-path (substring record 3 (string-length record)))
+       (define directory? (directory-record? raw-path))
+       (define normalized
+         (if directory? (without-terminal-slash raw-path) raw-path))
+       (define id (workspace-id workspace-prefix normalized))
+       (cond
+         [(not id) #f]
+         [(source-bearing? code)
+          ; Porcelain -z puts a discarded source path after each rename or copy.
+          (define status (decode-status code))
+          (and
+           status
+           (not (null? (cdr records)))
+           (not (string=? (car (cdr records)) ""))
+           (loop
+            (cdr (cdr records))
+            (cons (git.path-status id status) path-statuses)))]
+         [(string=? code "!!")
+          (loop
+           (cdr records)
+           (cons
+            (git.path-status
+             id (if directory? 'ignored-tree 'ignored))
+            path-statuses))]
+         [else
+          (define status (decode-status code))
+          (and status
+               (loop (cdr records)
+                     (cons (git.path-status id status) path-statuses)))])])))
+
+(define (parse output workspace-prefix)
+  (parse-records output (strip-terminal-lf workspace-prefix)))

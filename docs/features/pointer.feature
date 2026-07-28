@@ -1,0 +1,137 @@
+Feature: Use the pointer in Grove
+
+  Scenario: Activate a visible row on left press
+    Given a Workspace containing entries
+      | path       |
+      | anchor.txt |
+      | target.txt |
+    And "anchor.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And "target.txt" is pressed
+    Then Helix shows the "target.txt" document
+    When the pointer releases over "anchor.txt"
+    Then Helix shows the "target.txt" document
+
+  Scenario: Toggle a directory on left press
+    Given a Workspace containing entries
+      | kind      | path              | target | lines |
+      | file      | anchor.txt        |        |       |
+      | directory | folder            |        |       |
+      | file      | folder/inside.txt |        |       |
+    And "anchor.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And "folder" is pressed
+    Then the File tree shows "inside.txt"
+    And the editor remains active
+
+  Scenario: Keep the Pinned Workspace root inert on press
+    Given a Workspace containing entries
+      | kind      | path              | target | lines |
+      | file      | anchor.txt        |        |       |
+      | directory | folder            |        |       |
+      | file      | folder/inside.txt |        |       |
+    And "anchor.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And "workspace" is pressed
+    Then the File tree shows "folder"
+    And the editor remains active
+
+  Scenario: Keep an unreadable Workspace root inert on press
+    Given a Workspace containing entries
+      | path       |
+      | anchor.txt |
+    And "anchor.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And the Workspace root becomes unreadable
+    Then "workspace" uses the unreadable-folder icon and error foreground
+    When "workspace" is pressed
+    Then the editor remains active
+
+  Scenario: Keep the existing Cursor when a file is pressed
+    Given a Workspace containing entries
+      | kind      | path              | target | lines |
+      | file      | anchor.txt        |        |       |
+      | directory | folder            |        |       |
+      | file      | folder/inside.txt |        |       |
+      | file      | target.txt        |        |       |
+    And "anchor.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And Grove is focused
+    And Grove receives "Down"
+    And "folder" is pressed
+    And Grove receives "Enter"
+    Then Helix shows the "target.txt" document
+
+  Scenario: Return an outside press to Helix
+    Given a Workspace containing entries
+      | path       |
+      | anchor.txt |
+    And "anchor.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And Grove is focused
+    And the editor is pressed
+    And the editor inserts "outside-" and saves
+    Then the content of "anchor.txt" contains "outside-"
+
+  Scenario: Scroll three rows without moving Cursor
+    Given a Workspace containing entries
+      | kind | path            | count |
+      | file | anchor.txt      |       |
+      | file | page-{:02d}.txt | 40    |
+    And "anchor.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And Grove is focused
+    And Grove receives "Down"
+    And the Wheel scrolls down over Grove
+    And "workspace" is pressed
+    Then Pane row 2 is "page-02.txt"
+    When Grove receives "Enter"
+    Then Helix shows the "page-00.txt" document
+
+  Scenario: Keep a scrolled viewport stable when a file is pressed
+    Given a Workspace containing entries
+      | kind | path            | count |
+      | file | anchor.txt      |       |
+      | file | page-{:02d}.txt | 40    |
+    And "anchor.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And the File tree shows "page-04.txt"
+    And the Wheel scrolls down over Grove
+    And "page-04.txt" is pressed
+    Then Helix shows the "page-04.txt" document
+    And Pane row 2 is "page-02.txt"
+
+  Scenario: Scroll three rows up without moving Cursor
+    Given a Workspace containing entries
+      | kind | path            | count |
+      | file | anchor.txt      |       |
+      | file | page-{:02d}.txt | 40    |
+    And "anchor.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And Grove is focused
+    And Grove receives "Down"
+    And the Wheel scrolls down over Grove
+    And the Wheel scrolls up over Grove
+    Then Pane row 2 is "anchor.txt"
+    When Grove receives "Enter"
+    Then Helix shows the "page-00.txt" document
+
+  Scenario: Ignore inert rows and blank Grove space
+    Given a Workspace containing entries
+      | kind                      | path            | target    | lines |
+      | file                      | file2.txt       |           |       |
+      | file                      | file10.txt      |           |       |
+      | file                      | .env            |           |       |
+      | directory                 | adir            |           |       |
+      | directory                 | .git            |           |       |
+      | file                      | .git/hidden.txt |           |       |
+      | file link                 | file-link       | file2.txt |       |
+      | unfollowed directory link | directory-link  | adir      |       |
+      | broken link               | broken-link     | missing   |       |
+      | fifo                      | named-pipe      |           |       |
+    And "file2.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And "directory-link" is pressed
+    And blank Grove space is pressed
+    Then Helix shows the "file2.txt" document
+    And the editor remains active
