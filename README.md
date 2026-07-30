@@ -5,7 +5,12 @@ star.
 
 ![Grove docked beside the Helix editor](screenshot.png)
 
-[Features](#features) · [Install](#install) · [Configuration](#configuration) · [Controls](#controls)
+<p align="center">
+  <a href="#features">Features</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#configuration">Configuration</a> ·
+  <a href="#controls">Controls</a>
+</p>
 
 ## Features
 
