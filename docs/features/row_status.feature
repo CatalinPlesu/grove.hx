@@ -6,6 +6,7 @@ Feature: Present File tree status layers
       | file | outer/inner/active.txt |        |       |
     And "outer/inner/active.txt" is Active
     When Helix starts with Grove in that Workspace
+    And Grove is focused
     And the editor inserts "changed-" without saving
     Then these rows carry one Unsaved mark
       | row            |
@@ -86,7 +87,8 @@ Feature: Present File tree status layers
     And Grove is focused
     And Grove receives "Up"
     And the Wheel scrolls down over Grove
-    Then the Ancestor stack is "workspace > alpha > beta > gamma" above File tree row "item-03.txt"
+    And the Wheel scrolls down over Grove
+    Then the Ancestor stack is "workspace > alpha > beta > gamma" above File tree row "item-02.txt"
     And the Pinned "gamma" row keeps ordinary status layers
 
   Scenario: Compose ignored dimming with a Pinned row background
@@ -103,7 +105,8 @@ Feature: Present File tree status layers
     And Grove is focused
     And Grove receives "Up"
     And the Wheel scrolls down over Grove
-    Then the Ancestor stack is "workspace > alpha > beta > gamma" above File tree row "item-03.txt"
+    And the Wheel scrolls down over Grove
+    Then the Ancestor stack is "workspace > alpha > beta > gamma" above File tree row "item-02.txt"
     And the Pinned "alpha" row background composes with ignored dimming
 
   Rule: With representative Git statuses

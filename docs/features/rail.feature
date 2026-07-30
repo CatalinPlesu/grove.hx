@@ -27,7 +27,7 @@ Feature: Navigate and resize with the Rail
       When Helix starts with Grove in that Workspace
       And the terminal height becomes 10 rows
       And the Rail track below the thumb is clicked
-      Then Pane row 2 is "page-09.txt"
+      Then Pane row 2 is "page-08.txt"
       When the Rail track above the thumb is clicked
       Then Pane row 2 is "anchor.txt"
 
@@ -78,7 +78,7 @@ Feature: Navigate and resize with the Rail
       And the Rail thumb is pressed
       And the Wheel scrolls down over Grove
       And the pointer moves horizontally
-      Then Pane row 2 is "page-02.txt"
+      Then Pane row 2 is "page-01.txt"
       And Grove has width 32
 
     Scenario: Let a new press cancel a Rail drag

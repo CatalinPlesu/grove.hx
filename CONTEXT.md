@@ -8,19 +8,27 @@ current working directory: its root identity and current File tree. It owns
 filesystem truth only. Git state and Grove interaction are owned separately.
 _Avoid_: Project, Tree model, provider state, project pane
 
+**Observation snapshot**:
+One atomic external observation of Workspace root, File tree, Git status, and
+Active file. Every field belongs to the same Workspace root. The snapshot is a
+Message payload, not a state owner.
+_Avoid_: Workspace snapshot, application snapshot
+
 **Model**:
-Grove's one authoritative semantic state at an instant. It stores Workspace,
-Git status, unsaved-buffer observation, and Grove interaction state. It exposes
-semantic Visible rows ready for presentation as a pure projection of those
-facts. Presentation geometry and adapter state are not part of it.
+Grove's one authoritative state at an instant. It owns observed Workspace, Git,
+and Host facts together with persistent Grove interaction state. Visible rows
+and resolved Layout are pure projections, not separate state owners.
 _Avoid_: Application state, pane model, presentation model
 
 **Active file**:
-The Workspace file in Helix's active editor split. Only Host Context observation
-changes it; an open command never predicts it. Grove reveals and highlights it.
-A present Unsaved mark preserves that emphasis.
-Normal activation of this row only returns control to Helix, preserving its
-cursor and scroll. Split activation still opens the requested split.
+The Workspace file in Helix's active editor split. Only Host observation changes
+it; an open command never predicts it. Regular refresh does not expand
+or scan through collapsed ancestors only to follow it. Focusing Grove takes a
+complete observation, scans the Active file path, then expands and reveals it
+when Pane is available. The row is highlighted whenever it is Visible. A
+present Unsaved mark preserves that emphasis. Normal activation only returns
+control to Helix, preserving the editor cursor and viewport. Split activation
+still opens the requested split.
 _Avoid_: Cursor, selected row
 
 **Editor view**:
@@ -35,25 +43,32 @@ otherwise begins on the Workspace root. It disappears after file activation,
 Escape, an outside click, or the first key Grove does not bind. An unbound key
 is passed to Helix after Cursor disappears. A present Unsaved mark preserves
 Cursor emphasis. A refreshed File tree keeps the Cursor on the same row when it
-survives and resets it to the Workspace root when it does not.
+survives and resets it to the Workspace root when it does not. Pane
+unavailability removes Cursor; restoring terminal space does not restore focus.
 _Avoid_: Active file, current file
 
 **Workspace session**:
-The expansion, optional Cursor, and viewport intent retained for the current
+The expansion, optional Cursor, and Scroll anchor retained for the current
 Workspace. Changing Helix's current directory replaces the session when it
-changes the Workspace root. Grove width is retained independently across roots.
+changes the Workspace root. Collapsing a directory also clears expansion for
+every descendant. Grove width is retained independently across roots.
 _Avoid_: Interaction state, persisted settings
 
-**Viewport intent**:
-Whether the viewport follows the Cursor or stays anchored after direct
-scrolling. Direct scrolling never moves the Cursor. Active file observation may
-reveal a row without creating or moving the Cursor.
-_Avoid_: Numeric viewport offset, Cursor
+**Scroll anchor**:
+The Visible row intended to be the first ordinary row in Layout. It preserves a
+semantic viewport position across File tree and Host geometry changes.
+_Avoid_: Numeric viewport offset, Viewport intent, Cursor
 
 **Pane**:
 Grove's visible docked region: File tree rows plus the permanent Rail. It is
 presentation geometry, not a state owner or a separate Helix pane.
 _Avoid_: Runtime pane, pane model, interaction state
+
+**Host geometry**:
+The latest component rectangle reported by Helix at the start of rendering.
+Model stores this observation. Layout combines it with requested width and side
+to derive Pane bounds, Pane availability, ordinary capacity, and Rail geometry.
+_Avoid_: Pane geometry, viewport geometry
 
 **Rail**:
 The permanent editor-facing column of Grove. Its track separates Grove from the
@@ -63,8 +78,10 @@ _Avoid_: Separator, scrollbar column
 
 **File tree**:
 One immutable ordered filesystem hierarchy containing the entries currently
-known to Grove. Its Workspace root is separate identity; collapsed directories
-remain present without their contents.
+known to Grove from the latest Observation snapshot. Its Workspace root is a
+separate identity. Collapse does not edit this hierarchy. Expansion controls
+which known descendants become Visible rows; a later observation may replace
+the hierarchy with a scan that did not traverse a collapsed directory.
 _Avoid_: Tree state, session
 
 **Unreadable directory**:
@@ -111,8 +128,10 @@ _Avoid_: Buffer overlay, Buffer mark, dirty count
 
 **Visible row**:
 One semantic filesystem entry in the current File tree. Its stable identity
-drives navigation, while ordinary non-root rows also expose a path for pointer
-actions.
+drives navigation. The Workspace root has its own identity. Every non-root row
+uses its Workspace root plus exact relative path as identity. Recreating an
+entry at the same path preserves that row identity. Ordinary non-root rows also
+expose an absolute path for Host actions.
 _Avoid_: Rendered line, row index
 
 **Pinned ancestor row**:

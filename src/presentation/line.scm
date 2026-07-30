@@ -1,6 +1,6 @@
-(require (prefix-in rows. "../domain/model/rows.scm"))
+(require (prefix-in rows. "../domain/rows.scm"))
+(require (prefix-in layout. "../domain/layout.scm"))
 (require (prefix-in devicons. "devicons/devicons.scm"))
-(require (prefix-in ancestor. "ancestor.scm"))
 
 (provide styles build
          run-text run-style run-icon-color run-foreground run-dim?
@@ -64,15 +64,15 @@
   (spaces (max 0 (- (* 2 (rows.row-depth row)) 1))))
 
 (define (git-foreground row styles)
-  (define foreground (rows.row-git-status row))
+  (define status (rows.row-git-status row))
   (cond
-    [(equal? foreground 'conflict)
+    [(equal? status 'conflict)
      (styles-value-error-foreground styles)]
-    [(equal? foreground 'deleted)
+    [(equal? status 'deleted)
      (styles-value-deleted-foreground styles)]
-    [(equal? foreground 'modified)
+    [(equal? status 'modified)
      (styles-value-modified-foreground styles)]
-    [(equal? foreground 'created)
+    [(equal? status 'created)
      (styles-value-created-foreground styles)]
     [else #f]))
 
@@ -183,9 +183,9 @@
         triangle)
        style))]))
 
-(define (row-runs shown-row width styles)
-  (define row (ancestor.shown-row shown-row))
-  (define pinned? (ancestor.shown-row-pinned? shown-row))
+(define (row-runs slot width styles)
+  (define row (layout.slot-row slot))
+  (define pinned? (layout.slot-pinned? slot))
   (define body-width (max 0 (- width 1)))
   (define style (base-style row styles pinned?))
   (define kind (rows.row-kind row))
@@ -253,11 +253,11 @@
     (styles-value-rail-thumb styles)
     (styles-value-rail-track styles))))
 
-(define (build shown-row content-width side rail-part styles)
+(define (build slot content-width side rail-part styles)
   (define content
     (if
-     shown-row
-     (row-runs shown-row content-width styles)
+     slot
+     (row-runs slot content-width styles)
      (list
       (make-run
        (spaces content-width)

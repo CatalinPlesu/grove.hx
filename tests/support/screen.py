@@ -465,8 +465,6 @@ def _is_status(line: str) -> bool:
     has_selection = re.match(r"\d+\s+sel(?:\s|$)", rest.strip()) is not None
     has_coordinates = re.search(r"\d+:\d+\s*$", line) is not None
     has_mode = any(_status_token(line, mode) for mode in MODES)
-    if has_selection and (not document.strip() or not has_coordinates):
-        raise AssertionError(f"Malformed test statusline: {line!r}")
     return bool(document.strip()) and has_coordinates and (has_selection or has_mode)
 
 

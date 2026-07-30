@@ -40,14 +40,13 @@
      (open-output-file "/dev/null" #:exists 'append)))
   (and
    null-port
-   (let* ([spawn-result
-           (with-handler
-            (lambda (_cause) #f)
-            (spawn-process (prepare-command arguments null-port)))]
-          [_null-port-closed
-           (with-handler
-            (lambda (_cause) #f)
-            (close-output-port null-port))])
+   (let ([spawn-result
+          (with-handler
+           (lambda (_cause) #f)
+           (spawn-process (prepare-command arguments null-port)))])
+     (with-handler
+      (lambda (_cause) #f)
+      (close-output-port null-port))
      (and
       spawn-result
       (not (Err? spawn-result))

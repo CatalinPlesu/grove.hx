@@ -47,7 +47,7 @@ Feature: Use the pointer in Grove
     When "workspace" is pressed
     Then the editor remains active
 
-  Scenario: Keep the existing Cursor when a file is pressed
+  Scenario: Keep the existing Cursor when a directory is pressed
     Given a Workspace containing entries
       | kind      | path              | target | lines |
       | file      | anchor.txt        |        |       |
@@ -84,7 +84,7 @@ Feature: Use the pointer in Grove
     And Grove receives "Down"
     And the Wheel scrolls down over Grove
     And "workspace" is pressed
-    Then Pane row 2 is "page-02.txt"
+    Then Pane row 2 is "page-01.txt"
     When Grove receives "Enter"
     Then Helix shows the "page-00.txt" document
 
@@ -99,7 +99,7 @@ Feature: Use the pointer in Grove
     And the Wheel scrolls down over Grove
     And "page-04.txt" is pressed
     Then Helix shows the "page-04.txt" document
-    And Pane row 2 is "page-02.txt"
+    And Pane row 2 is "page-01.txt"
 
   Scenario: Scroll three rows up without moving Cursor
     Given a Workspace containing entries

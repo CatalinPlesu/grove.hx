@@ -1,5 +1,6 @@
 (require (prefix-in tree. "../domain/tree.scm"))
 (require (prefix-in path. "../domain/path.scm"))
+(require (prefix-in expansion. "../domain/expansion.scm"))
 
 (provide scan)
 
@@ -23,7 +24,7 @@
     [(fs-metadata-is-file? metadata) 'file-link]
     [else 'broken-link]))
 
-(define (scan-directory path parent-id expanded)
+(define (scan-directory path parent-id expansion-value)
   (define entries (directory-entries path))
   (and
    entries
@@ -52,15 +53,20 @@
                 result))]
              [(read-dir-entry-is-dir? entry)
               (define id (path.child-id parent-id name))
+              (define expanded?
+                (expansion.contains? expansion-value id))
               (define descendants
                 (and
-                 (member id expanded)
+                 expanded?
                  (scan-directory
-                  (read-dir-entry-path entry) id expanded)))
+                  (read-dir-entry-path entry)
+                  id
+                  expansion-value)))
               (define kind
-                (if (and (member id expanded) (not descendants))
-                    'unreadable-directory
-                    'directory))
+                (if
+                 (and expanded? (not descendants))
+                 'unreadable-directory
+                 'directory))
               (loop
                (cdr remaining)
                (append
@@ -69,7 +75,7 @@
              [else
               (loop (cdr remaining) result)]))))))
 
-(define (scan root expanded)
+(define (scan root expansion-value)
   (define entries
-    (scan-directory root path.root-id expanded))
+    (scan-directory root path.root-id expansion-value))
   (if entries (tree.build entries) (tree.unreadable-root)))

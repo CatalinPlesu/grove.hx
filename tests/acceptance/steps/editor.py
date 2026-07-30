@@ -4,6 +4,7 @@ from pathlib import Path
 from pytest_bdd import parsers, then, when
 
 from tests.support.host import Helix
+from tests.support.screen import Screen
 from tests.support.waiting import consistently, eventually
 from tests.support.workspace import Workspace
 
@@ -134,19 +135,56 @@ def terminal_height_becomes(helix: Helix, height: int) -> None:
     )
 
 
-@when("Grove is focused")
-def focus_grove(helix: Helix) -> None:
+@when("Grove is focused", target_fixture="focused_frame")
+def focus_grove(helix: Helix) -> Screen:
     eventually(
         helix,
         lambda screen: None if screen.rail is not None else "Grove did not render",
     )
     helix.focus_grove()
-    eventually(
+    return eventually(
         helix,
         lambda screen: (
             None if screen.cursor is not None else "Grove did not receive focus"
         ),
     )
+
+
+@then(parsers.parse('the focused frame shows "{name}" in Pane row {number:d}'))
+def focused_frame_shows_row(
+    focused_frame: Screen,
+    name: str,
+    number: int,
+) -> None:
+    row = focused_frame.row(name)
+    assert row is not None and row.number == number, (
+        f'The focused frame did not show "{name}" in Pane row {number}'
+    )
+
+
+@then(
+    parsers.parse(
+        '"{name}" stays focused in Pane row {number:d} through the next refresh'
+    )
+)
+def focused_row_survives_refresh(
+    helix: Helix,
+    name: str,
+    number: int,
+) -> None:
+    def mismatch(screen: Screen) -> str | None:
+        row = screen.row(name)
+        cursor = screen.cursor
+        if (
+            row is not None
+            and row.number == number
+            and cursor is not None
+            and cursor.path == row.path
+        ):
+            return None
+        return f'Grove moved focus away from "{name}" in Pane row {number}'
+
+    consistently(helix, mismatch, duration=2.5)
 
 
 @when(parsers.parse('Grove receives "{key}"'))

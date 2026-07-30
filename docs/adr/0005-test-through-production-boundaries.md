@@ -1,6 +1,7 @@
 # Test through production boundaries
 
-Test every Grove behavior through real Helix and Grove's public interface so
-`docs/features` remains the single executable behavior contract. Accept slower
-real-host tests instead of adding direct Scheme tests, test-only production
-modes, private exports, or a second lower-level specification.
+Test every user-visible Grove behavior through real Helix and Grove's public
+interface so `docs/features` remains the single executable behavior contract.
+Use pure Model and Layout tests only for laws that Host polling cannot prove,
+such as first-frame behavior. Do not duplicate feature scenarios or expose
+private implementation.

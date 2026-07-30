@@ -2,7 +2,7 @@
 (require "helix/ext.scm")
 (require "helix/misc.scm")
 (require "helix/editor.scm")
-(require (prefix-in view. "../../presentation/view.scm"))
+(require (prefix-in layout. "../../domain/layout.scm"))
 
 (provide install! apply-clip!)
 
@@ -20,14 +20,13 @@
     (set-clip! width)
     (set! *clip-width* width)))
 
-(define (install! side width render! handle-event!)
+(define (install! side render! handle-event!)
   (set! *clip-side* side)
   (set! *clip-width* #f)
-  (apply-clip! width)
+  (apply-clip! 0)
   (define (render-component! _state rect frame)
     (render!
-     *clip-side*
-     (view.geometry
+     (layout.geometry
       (area-x rect) (area-y rect) (area-width rect) (area-height rect))
      frame))
   (define (handle-component-event! _state event)

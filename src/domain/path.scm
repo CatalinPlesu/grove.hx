@@ -1,4 +1,4 @@
-(provide root-id root-id? valid-id? child-id parent-id ancestor-ids
+(provide root-id root-id? valid-id? child-id parent-id ancestor-ids id-inside?
          basename
          path-for-id id-for-path path-inside?)
 
@@ -53,6 +53,16 @@
      parent
      (loop (parent-id parent) (cons parent result))
      result)))
+
+(define (id-inside? directory-id candidate-id)
+  (define prefix
+    (if
+     (root-id? directory-id)
+     directory-id
+     (string-append directory-id "/")))
+  (and
+   (> (string-length candidate-id) (string-length prefix))
+   (path-prefix? prefix candidate-id)))
 
 (define (basename value)
   (if

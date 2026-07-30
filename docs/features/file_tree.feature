@@ -9,7 +9,7 @@ Feature: Keep the File tree current
     And the "folder" directory is expanded
     Then the File tree shows "folder/appeared.txt"
 
-  Scenario: Restore expanded descendants when their parent is reopened
+  Scenario: Forget expanded descendants when their parent closes
     Given a Workspace containing entries
       | path                   |
       | outer/inner/before.txt |
@@ -20,6 +20,8 @@ Feature: Keep the File tree current
     And "outer/inner/after.txt" is created
     Then the File tree does not show "outer/inner/after.txt"
     When the "outer" directory is expanded
+    Then the File tree does not show "outer/inner/after.txt"
+    When the "outer/inner" directory is expanded
     Then the File tree shows "outer/inner/after.txt"
 
   Scenario: Discover new Workspace entries during refresh

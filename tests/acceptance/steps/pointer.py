@@ -61,6 +61,23 @@ def wheel_scrolls_down_over_grove(helix: Helix) -> None:
     helix.wheel("down", row=min(5, helix.height))
 
 
+@when(parsers.parse('the Wheel scrolls to "{name}" at the File tree bottom'))
+def wheel_scrolls_to_file_tree_bottom(
+    helix: Helix,
+    name: str,
+) -> None:
+    for _ in range(20):
+        helix.wheel("down", row=min(5, helix.height))
+    eventually(
+        helix,
+        lambda screen: (
+            None
+            if screen.row(name) is not None
+            else f'Wheel scrolling did not reach "{name}"'
+        ),
+    )
+
+
 @when(parsers.parse('the Wheel scrolls down over the Pinned row "{name}"'))
 def wheel_scrolls_over_pinned_row(helix: Helix, name: str) -> None:
     screen = eventually(

@@ -40,12 +40,13 @@
        (apply-run-style run))
       (loop (cdr remaining) (+ x (string-length text))))))
 
-(define (draw! frame pane)
-  (let loop ([remaining (view.lines pane)] [row (view.y pane)])
+(define (draw! frame current-view)
+  (let loop ([remaining (view.lines current-view)]
+             [row (view.y current-view)])
     (unless (null? remaining)
       (draw-line!
        frame
        (view.line-runs (car remaining))
-       (view.x pane)
+       (view.x current-view)
        row)
       (loop (cdr remaining) (+ row 1)))))

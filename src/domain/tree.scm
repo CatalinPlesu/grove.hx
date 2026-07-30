@@ -5,7 +5,7 @@
          build unreadable-root
          find entry-at
          entry-depth entry-label
-         directory?)
+         file-kind? directory-kind? expandable-kind? directory?)
 
 (struct file-tree-entry-value (id kind))
 (struct file-tree-value (entries))
@@ -14,10 +14,23 @@
 (define entry-kind file-tree-entry-value-kind)
 
 (define (valid-kind? kind)
-  (member
-   kind
-   '(directory unreadable-directory file file-link
-               directory-link broken-link)))
+  (and
+   (member
+    kind
+    '(directory unreadable-directory file file-link
+                directory-link broken-link))
+   #t))
+
+(define (file-kind? kind)
+  (and (member kind '(file file-link)) #t))
+
+(define (directory-kind? kind)
+  (and
+   (member kind '(directory unreadable-directory directory-link))
+   #t))
+
+(define (expandable-kind? kind)
+  (and (member kind '(directory unreadable-directory)) #t))
 
 (define (file-tree-entry id kind)
   (unless (and (path.valid-id? id) (valid-kind? kind))
@@ -29,11 +42,9 @@
    (not final?)
    0
    (cond
-     [(member
-       (entry-kind entry)
-       '(directory unreadable-directory directory-link))
+     [(directory-kind? (entry-kind entry))
       0]
-     [(member (entry-kind entry) '(file file-link)) 1]
+     [(file-kind? (entry-kind entry)) 1]
      [else 2])))
 
 (define (ordered-before? left right)
@@ -101,6 +112,4 @@
   (path.basename (entry-id entry)))
 
 (define (directory? entry)
-  (member
-   (entry-kind entry)
-   '(directory unreadable-directory directory-link)))
+  (directory-kind? (entry-kind entry)))

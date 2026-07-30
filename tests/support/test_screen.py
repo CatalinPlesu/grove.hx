@@ -65,6 +65,13 @@ def test_parse_decodes_vertical_editor_views() -> None:
     assert right.cursor == (2, 1)
 
 
+def test_parse_ignores_a_partially_rendered_status_line() -> None:
+    screen = Screen.parse(["anchor.txt ¦ 1 sel"])
+
+    assert screen.editor_mode is None
+    assert screen.editor_view_count == 0
+
+
 def test_row_decodes_a_unique_descendant_without_visible_ancestors() -> None:
     screen = Screen.parse(
         [

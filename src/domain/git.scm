@@ -9,10 +9,12 @@
 (define path-status-status path-status-value-status)
 
 (define (valid-path-status? status)
-  (member
-   status
-   '(conflicted deleted renamed copied added untracked type-changed modified
-                ignored ignored-tree)))
+  (and
+   (member
+    status
+    '(conflicted deleted renamed copied added untracked type-changed modified
+                 ignored ignored-tree))
+   #t))
 
 (define (path-status id status)
   (unless

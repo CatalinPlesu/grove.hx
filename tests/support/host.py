@@ -125,7 +125,8 @@ class Helix:
         self.pane.send_keys(sequence, enter=False, literal=True)
 
     def focus_grove(self) -> None:
-        self.command(":grove-focus!")
+        self.key("Space")
+        self.type("e")
 
     def exit(self) -> None:
         self.pane.window.set_option("remain-on-exit", "on")

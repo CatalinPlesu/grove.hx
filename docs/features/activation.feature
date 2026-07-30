@@ -1,12 +1,65 @@
 Feature: Activate files
 
-  Scenario: Reveal the Active file on startup
+  Scenario: Reveal a nested Active file only when Grove is focused
     Given a Workspace containing entries
       | path                   |
       | outer/inner/active.txt |
     And "outer/inner/active.txt" is Active
     When Helix starts with Grove in that Workspace
+    Then the File tree does not show "active.txt"
+    When Grove is focused
     Then the File tree shows "active.txt"
+    And "active.txt" has Cursor
+
+  Scenario: Reveal an off-screen Active file when Grove is focused
+    Given a Workspace containing entries
+      | kind | path                            | count |
+      | file | outer/inner/item-{:02d}.txt     | 20    |
+    And "outer/inner/item-05.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And the terminal height becomes 8 rows
+    And "outer" is activated
+    And "inner" is activated
+    And the Wheel scrolls down over Grove
+    And the Wheel scrolls down over Grove
+    And the Wheel scrolls down over Grove
+    And the Wheel scrolls down over Grove
+    Then the File tree does not show "item-05.txt"
+    When Grove is focused
+    Then the focused frame shows "item-05.txt" in Pane row 4
+    And the Ancestor stack is "workspace > outer > inner" above File tree row "item-05.txt"
+    And "item-05.txt" stays focused in Pane row 4 through the next refresh
+
+  Scenario: Reveal a top-level Active file after Wheel scrolling to the bottom
+    Given a Workspace containing entries
+      | kind | path           | count |
+      | file | item-{:02d}.txt | 40    |
+    And "item-00.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And the terminal height becomes 8 rows
+    And the Wheel scrolls to "item-39.txt" at the File tree bottom
+    Then the File tree does not show "item-00.txt"
+    When Grove is focused
+    Then the focused frame shows "item-00.txt" in Pane row 2
+    And "item-00.txt" stays focused in Pane row 2 through the next refresh
+
+  Scenario: Reveal a nested Active file after Wheel scrolling to the bottom
+    Given a Workspace containing entries
+      | kind | path                        | count |
+      | file | outer/inner/item-{:02d}.txt | 15    |
+      | file | tail-{:02d}.txt             | 30    |
+    And "outer/inner/item-00.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And the terminal height becomes 8 rows
+    And Grove is focused
+    And Grove receives "Escape"
+    And the Wheel scrolls to "tail-29.txt" at the File tree bottom
+    Then the File tree does not show "item-00.txt"
+    When Grove is focused
+    Then the focused frame shows "item-00.txt" in Pane row 4
+    And the Ancestor stack is "workspace > outer > inner" above File tree row "item-00.txt"
+    When the Wheel scrolls down over Grove
+    Then Pane row 4 is "item-03.txt"
 
   Scenario: Reveal a nested file activated by Helix
     Given a Workspace containing entries
@@ -19,6 +72,8 @@ Feature: Activate files
     And Grove is focused
     And Grove receives Helix's file-picker chord for "inside.txt"
     Then Helix shows the "folder/inside.txt" document
+    And the File tree does not show "inside.txt"
+    When Grove is focused
     And the File tree shows "inside.txt"
 
   Scenario: Open another file in the current split
