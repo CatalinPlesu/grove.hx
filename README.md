@@ -1,25 +1,10 @@
 # Grove
 
-Grove is a docked file tree for Helix, with Zed's project panel as its north
-star.
+Grove gives Helix the project pane it has been missing: navigate your workspace
+naturally with keyboard or mouse and never lose sight of Git changes or unsaved
+work.
 
 ![Grove docked beside the Helix editor](screenshot.png)
-
-<p align="center">
-  <a href="#features">Features</a> ·
-  <a href="#install">Install</a> ·
-  <a href="#configuration">Configuration</a> ·
-  <a href="#controls">Controls</a>
-</p>
-
-## Features
-
-- Use Grove comfortably from the keyboard or mouse without giving up Helix's
-  editor layout.
-- Keep Git changes and unsaved work visible beside the code, even through
-  collapsed directories.
-- Stay oriented in deep workspaces as ancestor directories remain visible
-  while you scroll.
 
 ## Install
 
@@ -33,14 +18,12 @@ formula through Homebrew:
 brew install --HEAD ivoronin/ivoronin/helix-steel
 ```
 
-To build the Steel fork manually instead, follow
-[Up and running with Helix and Steel Scheme](https://www.tomwaddington.dev/steel-helix-first-steps.html).
-The guide covers the source build, `PATH` setup, and initial Helix Scheme
-configuration.
-
 The formula lives in a personal tap but installs `hx`, Steel, and `forge`
-directly from the upstream repository. Use Forge to install Grove and its
-Scheme dependencies:
+directly from the upstream repository. To build the Steel fork manually instead, follow
+[Up and running with Helix and Steel Scheme](https://www.tomwaddington.dev/steel-helix-first-steps.html).
+The guide covers the source build, `PATH` setup, and initial Helix Scheme configuration.
+
+Use Forge to install Grove and its Scheme dependencies:
 
 ```sh
 forge pkg install --git https://github.com/ivoronin/grove.hx.git
