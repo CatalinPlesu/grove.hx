@@ -3,6 +3,8 @@
 Grove is a docked file tree for Helix, with Zed's project panel as its north
 star.
 
+![Grove docked beside the Helix editor](screenshot.png)
+
 [Features](#features) · [Install](#install) · [Configuration](#configuration) · [Controls](#controls)
 
 ## Features
