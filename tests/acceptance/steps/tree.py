@@ -61,7 +61,7 @@ def file_content_contains(
 
 @then(parsers.parse('the File tree does not show "{name}"'))
 def file_tree_does_not_show(helix: Helix, name: str) -> None:
-    def absent(screen):
+    def absent(screen: Screen) -> str | None:
         return None if screen.row(name) is None else f'Grove kept showing "{name}"'
 
     eventually(helix, absent)
@@ -73,13 +73,7 @@ def file_tree_rows_appear_in_order(
     helix: Helix,
     datatable: list[list[str]],
 ) -> None:
-    if not datatable or datatable[0] != ["name"]:
-        raise ValueError("File tree order table needs a name column")
-    if any(len(row) != 1 for row in datatable[1:]):
-        raise ValueError("File tree order rows must contain one name")
     names = [row[0] for row in datatable[1:]]
-    if not names:
-        raise ValueError("File tree order table needs at least one name")
 
     def mismatch(screen: Screen) -> str | None:
         rows = [screen.row(name) for name in names]
@@ -100,38 +94,27 @@ def file_tree_rows_appear_in_order(
     eventually(helix, mismatch)
 
 
-@then(parsers.parse('"{name}" uses the Broken link icon'))
-def entry_uses_broken_link_icon(helix: Helix, name: str) -> None:
-    _entry_uses_icon(helix, name, "󰌺", "Broken link")
+_ICONS = {
+    "Broken link": "󰌺",
+    "File link": "",
+    "directory": "",
+    "file": "󰈙",
+}
 
 
-@then(parsers.parse('"{name}" uses the File link icon'))
-def entry_uses_file_link_icon(helix: Helix, name: str) -> None:
-    _entry_uses_icon(helix, name, "", "File link")
-
-
-@then(parsers.parse('"{name}" uses the directory icon'))
-def entry_uses_directory_icon(helix: Helix, name: str) -> None:
-    _entry_uses_icon(helix, name, "", "directory")
-
-
-@then(parsers.parse('"{name}" uses the file icon'))
-def entry_uses_file_icon(helix: Helix, name: str) -> None:
-    _entry_uses_icon(helix, name, "󰈙", "file")
-
-
-def _entry_uses_icon(
-    helix: Helix,
-    name: str,
-    icon: str,
-    description: str,
-) -> None:
+@then(
+    parsers.re(
+        r'^"(?P<name>.+)" uses the '
+        r"(?P<kind>Broken link|File link|directory|file) icon$"
+    )
+)
+def entry_uses_icon(helix: Helix, name: str, kind: str) -> None:
     eventually(
         helix,
         lambda screen: (
             None
-            if (row := screen.row(name)) is not None and row.has_icon(icon)
-            else f'"{name}" did not use the {description} icon'
+            if (row := screen.row(name)) is not None and row.has_icon(_ICONS[kind])
+            else f'"{name}" did not use the {kind} icon'
         ),
     )
 
@@ -282,7 +265,7 @@ def file_tree_root_is(helix: Helix, name: str) -> None:
         helix,
         lambda screen: (
             None
-            if screen.workspace_root is not None and helix.workspace_name == name
+            if (root := screen.workspace_root) is not None and root.label == name
             else f'Grove did not show Workspace root "{name}"'
         ),
     )

@@ -3,12 +3,11 @@
 
 (provide file-tree-entry entry-id entry-kind
          build unreadable-root
-         find entry-at
+         find
          entry-depth entry-label
          file-kind? directory-kind? expandable-kind? directory?)
 
 (struct file-tree-entry-value (id kind))
-(struct file-tree-value (entries))
 
 (define entry-id file-tree-entry-value-id)
 (define entry-kind file-tree-entry-value-kind)
@@ -65,48 +64,24 @@
           (natural.before? (car left-path) (car right-path))])])))
 
 (define (build entries)
-  (file-tree-value
-   (list->vector
-    (cons
-     (file-tree-entry path.root-id 'directory)
-     (sort entries ordered-before?)))))
+  (cons
+   (file-tree-entry path.root-id 'directory)
+   (sort entries ordered-before?)))
 
 (define (unreadable-root)
-  (file-tree-value
-   (vector
-    (file-tree-entry path.root-id 'unreadable-directory))))
-
-(define (entry-count file-tree)
-  (vector-length (file-tree-value-entries file-tree)))
-
-(define (entry-at file-tree ordinal)
-  (and
-   (integer? ordinal)
-   (>= ordinal 0)
-   (< ordinal (entry-count file-tree))
-   (vector-ref (file-tree-value-entries file-tree) ordinal)))
+  (list
+   (file-tree-entry path.root-id 'unreadable-directory)))
 
 (define (find file-tree id)
-  (let loop ([ordinal 0])
-    (define entry (entry-at file-tree ordinal))
-    (and
-     entry
-     (if
-      (string=? id (entry-id entry))
-      entry
-      (loop (+ ordinal 1))))))
+  (findf
+   (lambda (entry) (string=? id (entry-id entry)))
+   file-tree))
 
 (define (entry-depth entry)
   (if
    (path.root-id? (entry-id entry))
    0
-   (let loop ([characters (string->list (entry-id entry))] [depth 1])
-     (if
-      (null? characters)
-      depth
-      (loop
-       (cdr characters)
-       (if (char=? (car characters) #\/) (+ depth 1) depth))))))
+   (length (split-many (entry-id entry) "/"))))
 
 (define (entry-label entry)
   (path.basename (entry-id entry)))

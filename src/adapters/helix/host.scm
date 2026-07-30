@@ -3,29 +3,24 @@
 (require (prefix-in helix. "helix/commands.scm"))
 (require (prefix-in helix-static. "helix/static.scm"))
 
-(provide workspace-root active-path document-path unsaved-paths open-file!)
+(provide workspace-root active-path unsaved-paths open-file!)
 
 (define (workspace-root)
   (helix-static.get-helix-cwd))
 
-(define (any-editor-view?)
-  (let loop ([documents (editor-all-documents)])
-    (cond
-      [(null? documents) #f]
-      [(editor-doc-in-view? (car documents)) #t]
-      [else (loop (cdr documents))])))
+(define (editor-view-open?)
+  (and
+   (findf editor-doc-in-view? (editor-all-documents))
+   #t))
 
 (define (focused-document-id)
   (and
-   (any-editor-view?)
+   (editor-view-open?)
    (editor->doc-id (editor-focus))))
 
 (define (active-path)
   (define document-id (focused-document-id))
   (and document-id (editor-document->path document-id)))
-
-(define (document-path document-id)
-  (editor-document->path document-id))
 
 (define (unsaved-paths)
   (let loop ([remaining (editor-all-documents)] [result '()])
@@ -44,13 +39,10 @@
          result))))))
 
 (define (document-id-for-path path)
-  (let loop ([documents (editor-all-documents)])
-    (and
-     (not (null? documents))
-     (let ([document-id (car documents)])
-       (if (equal? path (editor-document->path document-id))
-           document-id
-           (loop (cdr documents)))))))
+  (findf
+   (lambda (document-id)
+     (equal? path (editor-document->path document-id)))
+   (editor-all-documents)))
 
 (define (open-file! path mode)
   (define existing-document-id

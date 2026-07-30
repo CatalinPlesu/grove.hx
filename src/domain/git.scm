@@ -46,13 +46,10 @@
       candidate
       current))
 
-(define (lookup table id)
-  (and (hash-contains? table id) (hash-get table id)))
-
 (define (insert-stronger table id candidate)
   (if
    candidate
-   (hash-insert table id (stronger (lookup table id) candidate))
+   (hash-insert table id (stronger (hash-try-get table id) candidate))
    table))
 
 (define (insert-exact table id raw)
@@ -60,7 +57,7 @@
     (if (member raw '(ignored ignored-tree))
         'ignored
         (semantic-status raw)))
-  (define current (lookup table id))
+  (define current (hash-try-get table id))
   (cond
     [(not candidate) table]
     [(or (equal? current 'ignored) (equal? candidate 'ignored))
@@ -95,7 +92,9 @@
    (not git-status)
    #f
    (let ([exact
-          (lookup (status-value-exact-statuses git-status) id)])
+          (hash-try-get
+           (status-value-exact-statuses git-status)
+           id)])
      (if
       (equal? exact 'ignored)
       'ignored
@@ -103,4 +102,4 @@
        exact
        (and
         directory?
-        (lookup (status-value-descendant-statuses git-status) id)))))))
+        (hash-try-get (status-value-descendant-statuses git-status) id)))))))

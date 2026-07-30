@@ -35,10 +35,10 @@
 (struct cursor-expansion-requested (action))
 (struct cursor-open-requested (mode))
 (struct row-pressed (id))
-(struct scroll-by-message (amount))
-(struct scroll-to-message (numerator denominator))
-(struct resize-by-message (amount))
-(struct resize-to-message (width))
+(struct scroll-by-requested (amount))
+(struct scroll-to-requested (numerator denominator))
+(struct resize-by-requested (amount))
+(struct resize-to-requested (width))
 
 (struct refresh-command ())
 (struct open-file-command (path mode))
@@ -52,32 +52,6 @@
 
 (define MIN-WIDTH 16)
 (define MAX-WIDTH 64)
-
-(define (scroll-by-requested amount)
-  (unless (integer? amount)
-    (error "invalid relative scroll"))
-  (scroll-by-message amount))
-
-(define (scroll-to-requested numerator denominator)
-  (unless
-   (and
-    (integer? numerator)
-    (integer? denominator)
-    (>= numerator 0)
-    (> denominator 0)
-    (<= numerator denominator))
-   (error "invalid absolute scroll"))
-  (scroll-to-message numerator denominator))
-
-(define (resize-by-requested amount)
-  (unless (integer? amount)
-    (error "invalid relative resize"))
-  (resize-by-message amount))
-
-(define (resize-to-requested width-value)
-  (unless (integer? width-value)
-    (error "invalid absolute resize"))
-  (resize-to-message width-value))
 
 (define (valid-root? value)
   (and
@@ -174,12 +148,7 @@
       changed-root?
       (expansion.empty)
       (expansion.prune (model-value-expansion model) file-tree))
-     #:cursor (if changed-root? #f (model-value-cursor model))
-     #:anchor
-     (if
-      changed-root?
-      (rows.workspace-row-id root-value)
-      (model-value-anchor model))))
+     #:cursor (if changed-root? #f (model-value-cursor model))))
   (define base-rows (visible-rows base))
   (define next-cursor
     (and
@@ -217,28 +186,27 @@
    relative-id))
 
 (define (focus-model model)
-  (define initial-layout (resolved-layout model))
+  (define active-id (activatable-active-id model))
+  (define focused-expansion
+    (if
+     active-id
+     (expansion.expand-ancestors
+      (model-value-expansion model)
+      active-id)
+     (model-value-expansion model)))
+  (define expanded-model
+    (copy-model model #:expansion focused-expansion))
+  (define focused-layout (resolved-layout expanded-model))
   (if
-   (not initial-layout)
+   (not focused-layout)
    (copy-model model #:cursor #f)
-   (let* ([active-id (activatable-active-id model)]
-          [focused-expansion
-           (if
-            active-id
-            (expansion.expand-ancestors
-             (model-value-expansion model)
-             active-id)
-            (model-value-expansion model))]
-          [expanded-model
-           (copy-model model #:expansion focused-expansion)]
-          [target-id
+   (let* ([target-id
            (if
             active-id
             (rows.entry-row-id
              (model-value-root model)
              active-id)
             (root-row-id model))]
-          [focused-layout (resolved-layout expanded-model)]
           [next-anchor
            (layout.reveal focused-layout target-id 'first)])
      (copy-model
@@ -544,23 +512,23 @@
       current-rows
       (rows.find current-rows (row-pressed-id message))
       'normal)]
-    [(scroll-by-message? message)
+    [(scroll-by-requested? message)
      (on-scroll-by-requested
       model
-      (scroll-by-message-amount message))]
-    [(scroll-to-message? message)
+      (scroll-by-requested-amount message))]
+    [(scroll-to-requested? message)
      (on-scroll-to-requested
       model
-      (scroll-to-message-numerator message)
-      (scroll-to-message-denominator message))]
-    [(resize-by-message? message)
+      (scroll-to-requested-numerator message)
+      (scroll-to-requested-denominator message))]
+    [(resize-by-requested? message)
      (on-resize-requested
       model
       (+ (model-value-width model)
-         (resize-by-message-amount message)))]
-    [(resize-to-message? message)
+         (resize-by-requested-amount message)))]
+    [(resize-to-requested? message)
      (on-resize-requested
       model
-      (resize-to-message-width message))]
+      (resize-to-requested-width message))]
     [else
      (error "unknown Model Message")]))

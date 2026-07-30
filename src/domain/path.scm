@@ -8,12 +8,7 @@
   (and (string? id) (string=? id root-id)))
 
 (define (contains-null? text)
-  (let loop ([remaining (string->list text)])
-    (and
-     (pair? remaining)
-     (or
-      (= 0 (char->integer (car remaining)))
-      (loop (cdr remaining))))))
+  (string-contains? text "\0"))
 
 (define (valid-segment? segment)
   (and
@@ -38,14 +33,7 @@
   (if (root-id? parent) name (string-append parent "/" name)))
 
 (define (parent-id id)
-  (and
-   (not (root-id? id))
-   (let loop ([index (- (string-length id) 1)])
-     (cond
-       [(< index 0) root-id]
-       [(char=? (string-ref id index) #\/)
-        (substring id 0 index)]
-       [else (loop (- index 1))]))))
+  (and (not (root-id? id)) (parent-name id)))
 
 (define (ancestor-ids id)
   (let loop ([parent (parent-id id)] [result '()])
@@ -62,24 +50,10 @@
      (string-append directory-id "/")))
   (and
    (> (string-length candidate-id) (string-length prefix))
-   (path-prefix? prefix candidate-id)))
+   (starts-with? candidate-id prefix)))
 
 (define (basename value)
-  (if
-   (string=? value "/")
-   "/"
-   (let loop ([index (- (string-length value) 1)])
-     (cond
-       [(< index 0) value]
-       [(char=? (string-ref value index) #\/)
-        (substring value (+ index 1) (string-length value))]
-       [else (loop (- index 1))]))))
-
-(define (path-prefix? prefix path)
-  (and
-   (string? path)
-   (<= (string-length prefix) (string-length path))
-   (string=? prefix (substring path 0 (string-length prefix)))))
+  (if (string=? value "/") "/" (file-name value)))
 
 (define (path-for-id root id)
   (if
@@ -94,7 +68,7 @@
     [(string=? root absolute-path) root-id]
     [(and
       (> (string-length absolute-path) (string-length prefix))
-      (path-prefix? prefix absolute-path))
+      (starts-with? absolute-path prefix))
      (substring
       absolute-path
       (string-length prefix)
@@ -108,4 +82,4 @@
         (string-append directory "/")))
   (and
    (> (string-length absolute-path) (string-length prefix))
-   (path-prefix? prefix absolute-path)))
+   (starts-with? absolute-path prefix)))

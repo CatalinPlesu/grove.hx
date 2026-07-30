@@ -24,56 +24,50 @@
     [(fs-metadata-is-file? metadata) 'file-link]
     [else 'broken-link]))
 
+(define (scan-entry entry parent-id expansion-value)
+  (define name (read-dir-entry-file-name entry))
+  (define id (path.child-id parent-id name))
+  (cond
+    [(string=? name ".git")
+     '()]
+    [(read-dir-entry-is-symlink? entry)
+     (list (tree.file-tree-entry id (symlink-kind entry)))]
+    [(read-dir-entry-is-file? entry)
+     (list (tree.file-tree-entry id 'file))]
+    [(read-dir-entry-is-dir? entry)
+     (define expanded?
+       (expansion.contains? expansion-value id))
+     (define descendants
+       (and
+        expanded?
+        (scan-directory
+         (read-dir-entry-path entry)
+         id
+         expansion-value)))
+     (define kind
+       (if
+        (and expanded? (not descendants))
+        'unreadable-directory
+        'directory))
+     (cons
+      (tree.file-tree-entry id kind)
+      (if descendants descendants '()))]
+    [else
+     '()]))
+
 (define (scan-directory path parent-id expansion-value)
   (define entries (directory-entries path))
   (and
    entries
    (let loop ([remaining entries] [result '()])
-     (if (null? remaining)
-         result
-         (let* ([entry (car remaining)]
-                [name (read-dir-entry-file-name entry)])
-           (cond
-             [(string=? name ".git")
-              (loop (cdr remaining) result)]
-             [(read-dir-entry-is-symlink? entry)
-              (define kind (symlink-kind entry))
-              (loop
-               (cdr remaining)
-               (cons
-                (tree.file-tree-entry
-                 (path.child-id parent-id name) kind)
-                result))]
-             [(read-dir-entry-is-file? entry)
-              (loop
-               (cdr remaining)
-               (cons
-                (tree.file-tree-entry
-                 (path.child-id parent-id name) 'file)
-                result))]
-             [(read-dir-entry-is-dir? entry)
-              (define id (path.child-id parent-id name))
-              (define expanded?
-                (expansion.contains? expansion-value id))
-              (define descendants
-                (and
-                 expanded?
-                 (scan-directory
-                  (read-dir-entry-path entry)
-                  id
-                  expansion-value)))
-              (define kind
-                (if
-                 (and expanded? (not descendants))
-                 'unreadable-directory
-                 'directory))
-              (loop
-               (cdr remaining)
-               (append
-                (if descendants descendants '())
-                (cons (tree.file-tree-entry id kind) result)))]
-             [else
-              (loop (cdr remaining) result)]))))))
+     (if
+      (null? remaining)
+      result
+      (loop
+       (cdr remaining)
+       (append
+        (scan-entry (car remaining) parent-id expansion-value)
+        result))))))
 
 (define (scan root expansion-value)
   (define entries

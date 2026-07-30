@@ -17,17 +17,11 @@
 
 (define REFRESH-INTERVAL-MS 2000)
 
-(struct runtime
-  (model latest-view input-state focus-next-frame?))
-
-(define *runtime* #f)
+(define *model* #f)
+(define *latest-view* #f)
+(define *input-state* #f)
+(define *focus-next-frame?* #f)
 (define *started?* #f)
-
-(define (current-runtime)
-  (or *runtime* (error "Grove has not started")))
-
-(define (current-model)
-  (unbox (runtime-model (current-runtime))))
 
 (define (observe model-at-observation scan-active-path?)
   (define observed-root (host.workspace-root))
@@ -53,7 +47,7 @@
    active-path))
 
 (define (refresh-now!)
-  (define snapshot (observe (current-model) #f))
+  (define snapshot (observe *model* #f))
   (dispatch! (model.observation-received snapshot)))
 
 (define (schedule-refresh!)
@@ -79,26 +73,22 @@
     [else (error "unknown Model command")]))
 
 (define (dispatch! message)
-  (define state (current-runtime))
   (define update-result
-    (model.update
-     (unbox (runtime-model state))
-     message))
+    (model.update *model* message))
   (define next-model (model.update-result-model update-result))
-  (set-box! (runtime-model state) next-model)
+  (set! *model* next-model)
   (define command (model.update-result-command update-result))
   (when command
     (execute-command! command)))
 
 (define (render-current! geometry frame)
-  (define state (current-runtime))
   (if
-   (unbox (runtime-focus-next-frame? state))
-   (let ([snapshot (observe (current-model) #t)])
-     (set-box! (runtime-focus-next-frame? state) #f)
+   *focus-next-frame?*
+   (let ([snapshot (observe *model* #t)])
+     (set! *focus-next-frame?* #f)
      (dispatch! (model.focus-frame-observed snapshot geometry)))
    (dispatch! (model.geometry-observed geometry)))
-  (define model-at-render (current-model))
+  (define model-at-render *model*)
   (define current-view
     (view.build
      (model.resolved-layout model-at-render)
@@ -108,26 +98,21 @@
         (component.apply-clip!
          (view.width current-view))
         (render.draw! frame current-view)
-        (set-box! (runtime-latest-view state) current-view))
+        (set! *latest-view* current-view))
       (begin
         (component.apply-clip! 0)
-        (set-box! (runtime-latest-view state) #f)
-        (set-box!
-         (runtime-input-state state)
-         (input.init))))
+        (set! *latest-view* #f)
+        (set! *input-state* (input.init))))
   frame)
 
 (define (handle-event! event)
-  (define state (current-runtime))
   (define input-result
     (input.step
-     (unbox (runtime-input-state state))
-     (unbox (runtime-model state))
-     (unbox (runtime-latest-view state))
+     *input-state*
+     *model*
+     *latest-view*
      event))
-  (set-box!
-   (runtime-input-state state)
-   (input.result-state input-result))
+  (set! *input-state* (input.result-state input-result))
   (define message (input.result-message input-result))
   (when message
     (dispatch! message))
@@ -136,12 +121,10 @@
 (define (start-runtime! side width icons?)
   (define initial-update
     (model.init side width icons?))
-  (set! *runtime*
-        (runtime
-         (box (model.update-result-model initial-update))
-         (box #f)
-         (box (input.init))
-         (box #f)))
+  (set! *model* (model.update-result-model initial-update))
+  (set! *latest-view* #f)
+  (set! *input-state* (input.init))
+  (set! *focus-next-frame?* #f)
   (hooks.install! dispatch!)
   (component.install! side render-current! handle-event!)
   (subscribe-to-refresh!)
@@ -158,10 +141,7 @@
   #t)
 
 (define (focus!)
-  (when *runtime*
-    (define state (current-runtime))
-    (set-box!
-     (runtime-focus-next-frame? state)
-     #t)
+  (when *model*
+    (set! *focus-next-frame?* #t)
     (helix.redraw))
   #t)

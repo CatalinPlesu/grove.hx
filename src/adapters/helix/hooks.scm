@@ -23,7 +23,7 @@
     (observe-unsaved!))
   (define (document-saved! document-id)
     (dispatch!
-     (model.save-started (host.document-path document-id))))
+     (model.save-started (editor-document->path document-id))))
   (define (document-closed! _event)
     (observe-unsaved!))
   (register-hook 'document-focus-lost document-focus-lost!)

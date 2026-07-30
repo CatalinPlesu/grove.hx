@@ -190,6 +190,20 @@
 (define focused-model
   (focus-frame bottom-model nested-snapshot))
 
+(define unavailable-focused-model
+  (updated
+   initial-model
+   (model.focus-frame-observed
+    nested-snapshot
+    (layout.geometry 0 0 16 5))))
+
+(check
+ "an unavailable Pane does not expand Active file ancestors"
+ (not
+  (expansion.contains?
+   (model.expansion unavailable-focused-model)
+   "outer")))
+
 (define focused-layout (model.resolved-layout focused-model))
 (define focused-cursor-slots
   (filter

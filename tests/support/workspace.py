@@ -127,82 +127,23 @@ class Workspace:
 
 
 def _entries(table: list[list[str]]) -> tuple[Entry, ...]:
-    if len(table) < 2:
-        raise ValueError("Workspace table needs a header and at least one entry")
-    header = table[0]
-    if len(header) != len(set(header)):
-        raise ValueError("Workspace table has duplicate columns")
-    if any(len(row) != len(header) for row in table[1:]):
-        raise ValueError("Workspace table rows must match the header")
-    if header == ["path"]:
-        records = [{"path": row[0], "kind": "file"} for row in table[1:]]
-    else:
-        expected = {"kind", "path"}
-        if not expected <= set(header):
-            raise ValueError("Workspace table needs kind and path columns")
-        allowed = expected | {"target", "lines", "count"}
-        if not set(header) <= allowed:
-            raise ValueError("Workspace table has unknown columns")
-        records = [dict(zip(header, row, strict=True)) for row in table[1:]]
-
     result: list[Entry] = []
-    for record in records:
-        count = _positive(record.get("count") or "1", "count")
+    header, *rows = table
+    for row in rows:
+        record = dict(zip(header, row))
+        count = int(record.get("count") or "1")
         template = record["path"]
-        if count > 1 and "{" not in template:
-            raise ValueError("Counted paths need a format field")
         for index in range(count):
             path = template.format(index) if count > 1 else template
             result.append(
                 Entry(
-                    kind=_kind(record["kind"]),
+                    kind=record.get("kind") or "file",
                     path=_safe_path(path, "path"),
                     target=_optional_path(record.get("target") or ""),
-                    lines=_positive(record.get("lines") or "1", "lines"),
+                    lines=int(record.get("lines") or "1"),
                 )
             )
-
-    paths = [entry.path for entry in result]
-    if len(paths) != len(set(paths)):
-        raise ValueError("Workspace table has duplicate paths")
-    _validate_links(result)
-    _validate_hierarchy(result)
     return tuple(result)
-
-
-def _kind(value: str) -> str:
-    allowed = {
-        "file",
-        "directory",
-        "file link",
-        "unfollowed directory link",
-        "broken link",
-        "fifo",
-    }
-    if value not in allowed:
-        raise ValueError(f"Unknown Workspace entry kind: {value!r}")
-    return value
-
-
-def _validate_links(entries: list[Entry]) -> None:
-    links = {"file link", "unfollowed directory link", "broken link"}
-    for entry in entries:
-        if entry.kind in links and entry.target is None:
-            raise ValueError(f'Workspace link "{entry.path}" needs a target')
-        if entry.kind not in links and entry.target is not None:
-            raise ValueError(f'Workspace entry "{entry.path}" cannot have a target')
-
-
-def _validate_hierarchy(entries: list[Entry]) -> None:
-    kinds = {entry.path: entry.kind for entry in entries}
-    for entry in entries:
-        for parent in entry.path.parents:
-            if parent == PurePath("."):
-                continue
-            if (kind := kinds.get(parent)) is not None and kind != "directory":
-                raise ValueError(
-                    f'Workspace entry "{parent}" cannot contain "{entry.path}"'
-                )
 
 
 def _optional_path(value: str) -> PurePath | None:
@@ -219,13 +160,3 @@ def _safe_path(value: str, field: str) -> PurePath:
     if not value or path.is_absolute() or ".." in path.parts:
         raise ValueError(f"Unsafe Workspace {field}: {value!r}")
     return path
-
-
-def _positive(value: str, field: str) -> int:
-    try:
-        number = int(value)
-    except ValueError as error:
-        raise ValueError(f"Workspace {field} must be an integer") from error
-    if number < 1:
-        raise ValueError(f"Workspace {field} must be positive")
-    return number

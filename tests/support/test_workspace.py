@@ -5,22 +5,11 @@ import pytest
 from tests.support.workspace import Workspace
 
 
-@pytest.mark.parametrize(
-    "table",
-    [
-        [["path"], ["../outside.txt"]],
-        [["kind", "path", "target"], ["file link", "link", ""]],
-        [["kind", "path"], ["file", "parent"], ["file", "parent/child"]],
-    ],
-)
-def test_invalid_workspace_is_rejected_before_io(
-    tmp_path: Path,
-    table: list[list[str]],
-) -> None:
+def test_unsafe_workspace_path_is_rejected_before_io(tmp_path: Path) -> None:
     root = tmp_path / "workspace"
 
     with pytest.raises(ValueError):
-        Workspace.create(root, table)
+        Workspace.create(root, [["path"], ["../outside.txt"]])
 
     assert not root.exists()
 

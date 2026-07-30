@@ -20,11 +20,11 @@
     "GIT_DISCOVERY_ACROSS_FILESYSTEM"))
 
 (define (clear-git-environment command-value)
-  (let loop ([prepared command-value] [remaining GIT-VARIABLES])
-    (if (null? remaining)
-        prepared
-        (loop (without-env-var prepared (car remaining))
-              (cdr remaining)))))
+  (foldl
+   (lambda (variable prepared)
+     (without-env-var prepared variable))
+   command-value
+   GIT-VARIABLES))
 
 (define (prepare-command arguments null-port)
   (~> (command "git" arguments)

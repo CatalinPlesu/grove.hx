@@ -157,9 +157,7 @@ def test_rows_use_workspace_paths_and_preserve_mark_like_filenames() -> None:
         screen.row("same.txt")
 
 
-def test_rejects_a_frame_where_unsaved_mark_and_filename_are_indistinguishable() -> (
-    None
-):
+def test_rejects_an_ambiguous_unsaved_mark_filename() -> None:
     screen = Screen.parse(
         [f"{'  󰈙 foo ●':24}▕{'foo ¦ GNR ¦ 1:1':75}"],
         paths={PurePath("foo"), PurePath("foo ●")},

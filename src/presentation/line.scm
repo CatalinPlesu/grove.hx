@@ -48,8 +48,7 @@
   (define palette (styles-value-icon-palette styles))
   (and
    palette
-   (or (equal? (rows.row-kind row) 'file)
-       (equal? (rows.row-kind row) 'file-link))
+   (rows.row-file? row)
    (devicons.get_icon
     (rows.row-label row)
     #:variant palette)))
@@ -103,15 +102,15 @@
       [else
        (define current (car remaining))
        (define text (run-text current))
-       (define length (string-length text))
+       (define text-length (string-length text))
        (cond
          [(or
-           (< length left)
-           (and (= length left) (null? (cdr remaining))))
+           (< text-length left)
+           (and (= text-length left) (null? (cdr remaining))))
           (loop
            (cdr remaining)
-           (- left length)
-           (if (= length 0) result (cons current result)))]
+           (- left text-length)
+           (if (= text-length 0) result (cons current result)))]
          [else
           (reverse
            (cons
@@ -207,6 +206,7 @@
      (git-foreground row styles)))
   (define label-dim?
     (equal? (rows.row-git-status row) 'ignored))
+  (define unsaved-status (rows.row-unsaved-status row))
   (define body
     (fit-runs
      (append
@@ -229,12 +229,10 @@
     body
     (list
      (make-run
-      (if (rows.row-unsaved-status row) "●" " ")
+      (if unsaved-status "●" " ")
       style
       #f
-      (and
-       (rows.row-unsaved-status row)
-       (styles-value-unsaved-foreground styles)))))))
+      (and unsaved-status (styles-value-unsaved-foreground styles)))))))
 
 (define (rail-track-glyph side)
   (if (equal? side 'left) "▕" "▏"))

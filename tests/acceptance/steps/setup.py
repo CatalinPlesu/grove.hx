@@ -13,7 +13,14 @@ from tests.support.workspace import Workspace
 
 
 @when(
-    "Helix starts with Grove in that Workspace",
+    parsers.re(
+        r"^Helix starts with Grove(?:"
+        r" in that Workspace"
+        r"|(?P<default_icons_disabled> with icons disabled)"
+        r'| on the "(?P<side>[^"]+)" at width (?P<width>\d+)'
+        r"(?P<configured_icons_disabled> with icons disabled)?"
+        r")$"
+    ),
     target_fixture="helix",
 )
 def start_helix(
@@ -22,28 +29,24 @@ def start_helix(
     request: FixtureRequest,
     workspace: Workspace,
     active_file: Path | None,
+    side: str | None = None,
+    width: str | None = None,
+    default_icons_disabled: str | None = None,
+    configured_icons_disabled: str | None = None,
 ) -> Helix:
-    return _launch(tmp_path, server, request, workspace, active_file)
-
-
-@when(
-    "Helix starts with Grove with icons disabled",
-    target_fixture="helix",
-)
-def start_helix_with_icons_disabled(
-    tmp_path: Path,
-    server: Server,
-    request: FixtureRequest,
-    workspace: Workspace,
-    active_file: Path | None,
-) -> Helix:
+    options = []
+    if side:
+        options.extend((f"#:side '{side}", f"#:width {width}"))
+    if default_icons_disabled or configured_icons_disabled:
+        options.append("#:icons #f")
+    startup = f"(grove-start! {' '.join(options)})" if options else DEFAULT_STARTUP
     return _launch(
         tmp_path,
         server,
         request,
         workspace,
         active_file,
-        startup="(grove-start! #:icons #f)",
+        startup=startup,
     )
 
 
@@ -71,54 +74,6 @@ def start_helix_with_theme_inputs(
         theme=TEST_THEME
         + f'"ui.background" = {{ bg = "{background}" }}\n'
         + f'"ui.text" = {{ fg = "{text}" }}\n',
-    )
-
-
-@when(
-    parsers.parse('Helix starts with Grove on the "{side}" at width {width:d}'),
-    target_fixture="helix",
-)
-def start_configured_helix(
-    tmp_path: Path,
-    server: Server,
-    request: FixtureRequest,
-    workspace: Workspace,
-    active_file: Path | None,
-    side: str,
-    width: int,
-) -> Helix:
-    return _launch(
-        tmp_path,
-        server,
-        request,
-        workspace,
-        active_file,
-        startup=f"(grove-start! #:side '{side} #:width {width})",
-    )
-
-
-@when(
-    parsers.parse(
-        'Helix starts with Grove on the "{side}" at width {width:d} with icons disabled'
-    ),
-    target_fixture="helix",
-)
-def start_configured_helix_with_icons_disabled(
-    tmp_path: Path,
-    server: Server,
-    request: FixtureRequest,
-    workspace: Workspace,
-    active_file: Path | None,
-    side: str,
-    width: int,
-) -> Helix:
-    return _launch(
-        tmp_path,
-        server,
-        request,
-        workspace,
-        active_file,
-        startup=f"(grove-start! #:side '{side} #:width {width} #:icons #f)",
     )
 
 
@@ -341,37 +296,12 @@ def _report_git_statuses(
 def _git_status_records(
     table: list[list[str]],
 ) -> list[tuple[str, str, str]]:
-    if not table or table[0] not in (
-        ["path", "status"],
-        ["path", "status", "source"],
-    ):
-        raise ValueError("Git status table needs path and status columns")
-    if any(len(row) != len(table[0]) for row in table[1:]):
-        raise ValueError("Git status table rows must match the header")
-    if len(table) < 2:
-        raise ValueError("Git status table needs at least one path")
-
-    records = [(row[0], row[1], row[2] if len(row) == 3 else "") for row in table[1:]]
-    allowed = {
-        "clean",
-        "modified",
-        "deleted",
-        "created",
-        "ignored",
-        "conflict",
-        "renamed",
-        "copied",
-        "type changed",
-    }
-    sourced = {"renamed", "copied", "type changed"}
-    for name, status, source in records:
-        if status not in allowed:
-            raise ValueError(f"Unsupported Git test status: {status!r}")
-        if (status in sourced) != bool(source):
-            raise ValueError(
-                f'Git status "{status}" has an invalid source for "{name}"'
-            )
-    return records
+    header, *rows = table
+    records = (dict(zip(header, row)) for row in rows)
+    return [
+        (record["path"], record["status"], record.get("source", ""))
+        for record in records
+    ]
 
 
 def _create_git_conflicts(workspace: Workspace, paths: list[str]) -> None:

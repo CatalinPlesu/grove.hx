@@ -10,10 +10,6 @@ from tests.support.waiting import eventually
     target_fixture="mouse_contact",
 )
 def row_is_pressed(helix: Helix, name: str) -> MouseContact:
-    return _press_row(helix, name)
-
-
-def _press_row(helix: Helix, name: str) -> MouseContact:
     return helix.press(row=_row(helix, name).number)
 
 
@@ -23,12 +19,13 @@ def pointer_releases(
     mouse_contact: MouseContact,
     name: str,
 ) -> None:
-    mouse_contact.release_over(row=_row(helix, name).number)
+    mouse_contact.move_to(row=_row(helix, name).number, column=5)
+    mouse_contact.release()
 
 
 @when(parsers.parse('"{name}" is activated'))
 def row_is_activated(helix: Helix, name: str) -> None:
-    _press_row(helix, name).release()
+    helix.press(row=_row(helix, name).number).release()
 
 
 @when("the editor is pressed")
@@ -51,14 +48,9 @@ def blank_grove_space_is_pressed(helix: Helix) -> None:
     helix.click(row=screen.blank_grove_row, column=column)
 
 
-@when("the Wheel scrolls up over Grove")
-def wheel_scrolls_up_over_grove(helix: Helix) -> None:
-    helix.wheel("up", row=min(5, helix.height))
-
-
-@when("the Wheel scrolls down over Grove")
-def wheel_scrolls_down_over_grove(helix: Helix) -> None:
-    helix.wheel("down", row=min(5, helix.height))
+@when(parsers.re(r"^the Wheel scrolls (?P<direction>up|down) over Grove$"))
+def wheel_scrolls_over_grove(helix: Helix, direction: str) -> None:
+    helix.wheel(direction, row=min(5, helix.height))
 
 
 @when(parsers.parse('the Wheel scrolls to "{name}" at the File tree bottom'))
@@ -94,17 +86,8 @@ def wheel_scrolls_over_pinned_row(helix: Helix, name: str) -> None:
     helix.wheel("down", row=row.number, column=column)
 
 
-@when("the Rail track above the thumb is clicked")
-def rail_track_above_thumb_is_clicked(helix: Helix) -> None:
-    _click_rail_track(helix, "above")
-
-
-@when("the Rail track below the thumb is clicked")
-def rail_track_below_thumb_is_clicked(helix: Helix) -> None:
-    _click_rail_track(helix, "below")
-
-
-def _click_rail_track(helix: Helix, direction: str) -> None:
+@when(parsers.re(r"^the Rail track (?P<direction>above|below) the thumb is clicked$"))
+def rail_track_page_is_clicked(helix: Helix, direction: str) -> None:
     screen = eventually(
         helix,
         lambda current: (
@@ -134,7 +117,7 @@ def _click_rail_track(helix: Helix, direction: str) -> None:
 
 
 @when("the Rail track is clicked")
-def rail_is_clicked(helix: Helix) -> None:
+def rail_track_without_thumb_is_clicked(helix: Helix) -> None:
     screen = _rail_screen(helix)
     assert screen.rail is not None
     helix.click(row=2, column=screen.rail + 1)
@@ -209,30 +192,18 @@ def rail_thumb_is_pressed(helix: Helix) -> MouseContact:
     return _press_rail_thumb(helix)[1]
 
 
-@when("the Rail thumb is dragged to the top")
-def rail_thumb_is_dragged_to_top(
+@when(parsers.re(r"^the Rail thumb is dragged to the (?P<edge>top|bottom)$"))
+def rail_thumb_is_dragged_to_edge(
     helix: Helix,
     rail_contact: MouseContact,
-) -> None:
-    _drag_rail_thumb_to(helix, rail_contact, 1)
-
-
-@when("the Rail thumb is dragged to the bottom")
-def rail_thumb_is_dragged_to_bottom(
-    helix: Helix,
-    rail_contact: MouseContact,
-) -> None:
-    _drag_rail_thumb_to(helix, rail_contact, helix.height)
-
-
-def _drag_rail_thumb_to(
-    helix: Helix,
-    rail_contact: MouseContact,
-    row: int,
+    edge: str,
 ) -> None:
     screen = _rail_screen(helix)
     assert screen.rail is not None
-    rail_contact.drag_to(row=row, column=screen.rail + 1)
+    rail_contact.drag_to(
+        row={"top": 1, "bottom": helix.height}[edge],
+        column=screen.rail + 1,
+    )
 
 
 @when("the Rail thumb is dragged down")

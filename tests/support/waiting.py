@@ -12,9 +12,9 @@ Check = Callable[[Screen], str | None]
 def capture(host: Helix) -> Screen:
     return Screen.parse(
         host.pane.capture_pane(escape_sequences=True),
-        paths=host.paths,
-        directories=host.directories,
-        workspace_name=host.workspace_name,
+        paths=host.workspace.paths,
+        directories=host.workspace.directories,
+        workspace_name=host.workspace.root.name,
     )
 
 

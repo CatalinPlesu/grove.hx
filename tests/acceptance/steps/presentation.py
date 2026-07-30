@@ -41,44 +41,34 @@ def grove_yields_to_helix(helix: Helix) -> None:
     )
 
 
-@then(parsers.parse('"{name}" uses the conflict Git foreground'))
-def entry_uses_conflict_git_foreground(helix: Helix, name: str) -> None:
-    _entry_uses_foreground(helix, name, (255, 0, 255), "conflict Git")
+_FOREGROUNDS = {
+    "conflict Git": (255, 0, 255),
+    "deleted Git": (255, 0, 0),
+    "modified Git": (255, 255, 0),
+    "created Git": (0, 255, 0),
+    "theme text": (216, 216, 216),
+}
+_SELECTION_BACKGROUNDS = {
+    "Active": (48, 48, 48),
+    "Cursor": (64, 64, 64),
+}
 
 
-@then(parsers.parse('"{name}" uses the deleted Git foreground'))
-def entry_uses_deleted_git_foreground(helix: Helix, name: str) -> None:
-    _entry_uses_foreground(helix, name, (255, 0, 0), "deleted Git")
-
-
-@then(parsers.parse('"{name}" uses the modified Git foreground'))
-def entry_uses_modified_git_foreground(helix: Helix, name: str) -> None:
-    _entry_uses_foreground(helix, name, (255, 255, 0), "modified Git")
-
-
-@then(parsers.parse('"{name}" uses the created Git foreground'))
-def entry_uses_created_git_foreground(helix: Helix, name: str) -> None:
-    _entry_uses_foreground(helix, name, (0, 255, 0), "created Git")
-
-
-@then(parsers.parse('"{name}" uses the theme text foreground'))
-def entry_uses_theme_text_foreground(helix: Helix, name: str) -> None:
-    _entry_uses_foreground(helix, name, (216, 216, 216), "theme text")
-
-
-def _entry_uses_foreground(
-    helix: Helix,
-    name: str,
-    expected: tuple[int, int, int],
-    description: str,
-) -> None:
+@then(
+    parsers.re(
+        r'^"(?P<name>.+)" uses the '
+        r"(?P<foreground>conflict Git|deleted Git|modified Git|created Git|theme text) "
+        r"foreground$"
+    )
+)
+def entry_uses_foreground(helix: Helix, name: str, foreground: str) -> None:
     eventually(
         helix,
         lambda screen: (
             None
             if (row := screen.row(name)) is not None
-            and row.foreground_before(name) == expected
-            else f'"{name}" did not use the {description} foreground'
+            and row.foreground_before(name) == _FOREGROUNDS[foreground]
+            else f'"{name}" did not use the {foreground} foreground'
         ),
     )
 
@@ -112,34 +102,14 @@ def file_icon_uses_variant(helix: Helix, name: str, variant: str) -> None:
     )
 
 
-@then("these rows carry one Unsaved mark")
-def rows_carry_one_unsaved_mark(
+@then(parsers.re(r"^these rows carry (?P<amount>one|no) Unsaved mark$"))
+def rows_carry_unsaved_mark(
     helix: Helix,
     datatable: list[list[str]],
+    amount: str,
 ) -> None:
-    _rows_carry_unsaved_mark(helix, datatable, "●")
-
-
-@then("these rows carry no Unsaved mark")
-def rows_carry_no_unsaved_mark(
-    helix: Helix,
-    datatable: list[list[str]],
-) -> None:
-    _rows_carry_unsaved_mark(helix, datatable, None)
-
-
-def _rows_carry_unsaved_mark(
-    helix: Helix,
-    datatable: list[list[str]],
-    expected: str | None,
-) -> None:
-    if not datatable or datatable[0] != ["row"]:
-        raise ValueError("Unsaved mark table needs a row column")
-    if any(len(row) != 1 for row in datatable[1:]):
-        raise ValueError("Unsaved mark rows must contain one name")
+    expected = "●" if amount == "one" else None
     names = [row[0] for row in datatable[1:]]
-    if not names:
-        raise ValueError("Unsaved mark table needs at least one row")
 
     def mismatch(screen: Screen) -> str | None:
         for name in names:
@@ -172,17 +142,17 @@ def workspace_root_carries_no_unsaved_mark(helix: Helix) -> None:
     eventually(helix, mismatch)
 
 
-@then(parsers.parse('"{name}" clips without an Unsaved mark'))
-def long_filename_clips_without_mark(helix: Helix, name: str) -> None:
-    _wait_for_clipped_suffix(helix, name, "…")
-
-
-@then(parsers.parse('"{name}" clips with its Unsaved mark visible'))
-def long_filename_clips_with_mark(helix: Helix, name: str) -> None:
-    _wait_for_clipped_suffix(helix, name, "…●")
-
-
-def _wait_for_clipped_suffix(helix: Helix, name: str, suffix: str) -> None:
+@then(
+    parsers.re(
+        r'^"(?P<name>.+)" clips '
+        r"(?P<mark>without an Unsaved mark|with its Unsaved mark visible)$"
+    )
+)
+def long_filename_clips(helix: Helix, name: str, mark: str) -> None:
+    suffix = {
+        "without an Unsaved mark": "…",
+        "with its Unsaved mark visible": "…●",
+    }[mark]
     eventually(
         helix,
         lambda screen: (
@@ -252,34 +222,15 @@ def icons_and_unsaved_marks_keep_foregrounds(helix: Helix, name: str) -> None:
 
 
 @then(
-    parsers.parse(
-        'the Active "{name}" row background spans its icon, label, and Unsaved mark'
+    parsers.re(
+        r'^the (?P<selection>Active|Cursor) "(?P<name>.+)" row background '
+        r"spans its icon, label, and Unsaved mark$"
     )
 )
-def active_background_spans_row(
+def selected_background_spans_row(
     helix: Helix,
     name: str,
-) -> None:
-    _selected_background_spans_row(helix, name, (48, 48, 48), "Active")
-
-
-@then(
-    parsers.parse(
-        'the Cursor "{name}" row background spans its icon, label, and Unsaved mark'
-    )
-)
-def cursor_background_spans_row(
-    helix: Helix,
-    name: str,
-) -> None:
-    _selected_background_spans_row(helix, name, (64, 64, 64), "Cursor")
-
-
-def _selected_background_spans_row(
-    helix: Helix,
-    name: str,
-    expected: tuple[int, int, int],
-    owner: str,
+    selection: str,
 ) -> None:
     markers = ("󰈙", name, "●")
     eventually(
@@ -287,8 +238,11 @@ def _selected_background_spans_row(
         lambda screen: (
             None
             if (row := screen.row(name)) is not None
-            and all(row.background_before(marker) == expected for marker in markers)
-            else f'{owner} background did not span the whole "{name}" row'
+            and all(
+                row.background_before(marker) == _SELECTION_BACKGROUNDS[selection]
+                for marker in markers
+            )
+            else f'{selection} background did not span the whole "{name}" row'
         ),
     )
 
@@ -307,29 +261,15 @@ def cursor_icon_uses_cursor_foreground(helix: Helix, name: str) -> None:
 
 
 @then(
-    parsers.parse('ignored dimming on "{name}" composes with the Active row background')
+    parsers.re(
+        r'^ignored dimming on "(?P<name>.+)" composes with the '
+        r"(?P<selection>Active|Cursor) row background$"
+    )
 )
-def ignored_dimming_composes_with_active_background(
+def ignored_dimming_composes_with_selected_background(
     helix: Helix,
     name: str,
-) -> None:
-    _ignored_dimming_composes_with_background(helix, name, (48, 48, 48))
-
-
-@then(
-    parsers.parse('ignored dimming on "{name}" composes with the Cursor row background')
-)
-def ignored_dimming_composes_with_cursor_background(
-    helix: Helix,
-    name: str,
-) -> None:
-    _ignored_dimming_composes_with_background(helix, name, (64, 64, 64))
-
-
-def _ignored_dimming_composes_with_background(
-    helix: Helix,
-    name: str,
-    expected_background: tuple[int, int, int],
+    selection: str,
 ) -> None:
     def mismatch(screen: Screen) -> str | None:
         row = screen.row(name)
@@ -344,7 +284,7 @@ def _ignored_dimming_composes_with_background(
         if row.is_dimmed_before("󰈙") or row.is_dimmed_before("●"):
             return "Ignored dimming leaked to the icon or Unsaved mark"
         if any(
-            row.background_before(marker) != expected_background
+            row.background_before(marker) != _SELECTION_BACKGROUNDS[selection]
             for marker in ("󰈙", name, "●")
         ):
             return "Selected background did not span the ignored row"

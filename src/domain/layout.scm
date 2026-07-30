@@ -13,7 +13,7 @@
 (struct slot-value (row pinned?))
 (struct layout-value
   (rows geometry side width
-        requested-anchor pane-slots ordinary-rows ordinary-capacity
+        anchor pane-slots ordinary-rows ordinary-capacity
         start total-rows))
 
 (define geometry-x geometry-value-x)
@@ -63,21 +63,7 @@
   (max lower (min upper value)))
 
 (define (slice values start count)
-  (let loop ([remaining values]
-             [position 0]
-             [left count]
-             [result '()])
-    (cond
-      [(or (null? remaining) (= left 0))
-       (reverse result)]
-      [(< position start)
-       (loop (cdr remaining) (+ position 1) left result)]
-      [else
-       (loop
-        (cdr remaining)
-        (+ position 1)
-        (- left 1)
-        (cons (car remaining) result))])))
+  (take (list-drop values start) count))
 
 ; Keep slot construction and concatenation direct.
 ; ADR 0001 covers Steel JIT corruption.
@@ -131,6 +117,7 @@
             (and anchor (rows.index-of visible-rows anchor))
             0)]
           [maximum-start (max 0 (- total host-height))]
+          ; Omit pinned ancestors at the bottom so the last rows remain reachable.
           [bottom-clamped? (>= anchor-index maximum-start)]
           [start-index
            (if bottom-clamped? maximum-start anchor-index)]
@@ -219,7 +206,7 @@
     (define candidate-layout (resolve-at layout candidate))
     (cond
       [(ordinary-row? candidate-layout target-id)
-       (layout-value-requested-anchor candidate-layout)]
+       (layout-value-anchor candidate-layout)]
       [(>= candidate target-index)
        target-id]
       [else
@@ -235,9 +222,9 @@
     (rows.index-of (layout-value-rows layout) id))
   (cond
     [(not target-index)
-     (layout-value-requested-anchor layout)]
+     (layout-value-anchor layout)]
     [(ordinary-row? layout id)
-     (layout-value-requested-anchor layout)]
+     (layout-value-anchor layout)]
     [(equal? placement 'first)
      id]
     [(< target-index (layout-value-start layout))
@@ -265,8 +252,8 @@
   (and
    (> total capacity)
    (max
-     1
-     (quotient
+    1
+    (quotient
      (* (height layout) capacity)
      total))))
 

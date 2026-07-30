@@ -4,19 +4,13 @@
 (provide parse)
 
 (define (strip-terminal-lf text)
-  (define length (string-length text))
-  (if (and (> length 0)
-           (char=? (string-ref text (- length 1)) #\newline))
-      (substring text 0 (- length 1))
+  (define text-length (string-length text))
+  (if (ends-with? text "\n")
+      (substring text 0 (- text-length 1))
       text))
 
-(define (string-prefix? prefix text)
-  (and (<= (string-length prefix) (string-length text))
-       (string=? prefix (substring text 0 (string-length prefix)))))
-
 (define (code-contains? code character)
-  (or (char=? character (string-ref code 0))
-      (char=? character (string-ref code 1))))
+  (string-contains? code (string character)))
 
 (define CONFLICT-CODES '("DD" "AU" "UD" "UA" "DU" "AA" "UU"))
 
@@ -38,13 +32,12 @@
     [else #f]))
 
 (define (workspace-id prefix path)
-  (and (string-prefix? prefix path)
+  (and (starts-with? path prefix)
        (let ([id (substring path (string-length prefix) (string-length path))])
          (and (path.valid-id? id) id))))
 
 (define (directory-record? path)
-  (and (> (string-length path) 0)
-       (char=? (string-ref path (- (string-length path) 1)) #\/)))
+  (ends-with? path "/"))
 
 (define (without-terminal-slash path)
   (substring path 0 (- (string-length path) 1)))

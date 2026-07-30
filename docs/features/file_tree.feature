@@ -37,6 +37,7 @@ Feature: Keep the File tree current
     Given a Workspace containing entries
       | kind                      | path            | target    | lines |
       | file                      | file2.txt       |           |       |
+      | file                      | file02.txt      |           |       |
       | file                      | file10.txt      |           |       |
       | file                      | .env            |           |       |
       | directory                 | adir            |           |       |
@@ -54,6 +55,7 @@ Feature: Keep the File tree current
       | directory-link |
       | .env           |
       | file2.txt      |
+      | file02.txt     |
       | file10.txt     |
       | file-link      |
       | broken-link    |

@@ -7,7 +7,7 @@ import shlex
 import shutil
 import time
 from dataclasses import dataclass, field
-from pathlib import Path, PurePath
+from pathlib import Path
 
 from libtmux import exc as libtmux_exc
 from libtmux.pane import Pane
@@ -54,18 +54,6 @@ class Helix:
         init=False,
         repr=False,
     )
-
-    @property
-    def paths(self) -> set[PurePath]:
-        return self.workspace.paths
-
-    @property
-    def directories(self) -> set[PurePath]:
-        return self.workspace.directories
-
-    @property
-    def workspace_name(self) -> str:
-        return self.workspace.root.name
 
     def change_workspace(self, workspace: Workspace) -> None:
         self.command(f":cd {json.dumps(str(workspace.root))}")
@@ -179,10 +167,6 @@ class MouseContact:
 
     def release(self) -> None:
         self.helix._send_raw(f"\x1b[<0;{self.column};{self.row}m")
-
-    def release_over(self, *, row: int, column: int = 5) -> None:
-        self.move_to(row=row, column=column)
-        self.release()
 
     def drag_to(self, *, row: int, column: int) -> None:
         self.move_to(row=row, column=column)

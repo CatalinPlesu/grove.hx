@@ -97,40 +97,29 @@
 
 (define (build root file-tree git-status unsaved-paths
                active-path expansion-value cursor)
-  (let loop ([ordinal 0] [result '()])
-    (define entry (tree.entry-at file-tree ordinal))
+  (let loop ([remaining file-tree] [result '()])
     (cond
-      [(not entry) (reverse result)]
-      [(visible? (tree.entry-id entry) expansion-value)
+      [(null? remaining) (reverse result)]
+      [(visible? (tree.entry-id (car remaining)) expansion-value)
        (loop
-        (+ ordinal 1)
+        (cdr remaining)
         (cons
          (entry-row
           root git-status unsaved-paths
-          active-path expansion-value cursor entry)
+          active-path expansion-value cursor (car remaining))
          result))]
-      [else (loop (+ ordinal 1) result)])))
+      [else (loop (cdr remaining) result)])))
 
 (define (find rows id)
-  (let loop ([remaining rows])
-    (and
-     (pair? remaining)
-     (if
-      (equal? id (row-id (car remaining)))
-      (car remaining)
-      (loop (cdr remaining))))))
+  (findf
+   (lambda (row) (equal? id (row-id row)))
+   rows))
 
 (define (at rows ordinal)
   (and
    (integer? ordinal)
    (>= ordinal 0)
-   (let loop ([remaining rows] [left ordinal])
-     (and
-      (pair? remaining)
-      (if
-       (= left 0)
-       (car remaining)
-       (loop (cdr remaining) (- left 1)))))))
+   (try-list-ref rows ordinal)))
 
 (define (index-of rows id)
   (let loop ([remaining rows] [ordinal 0])
@@ -151,13 +140,11 @@
       (hash-insert result (row-id (car remaining)) #t)))))
 
 (define (first-indexed-id rows indexed)
-  (and
-   (pair? rows)
-   (let ([id (row-id (car rows))])
-     (if
-      (hash-contains? indexed id)
-      id
-      (first-indexed-id (cdr rows) indexed)))))
+  (define found
+    (findf
+     (lambda (row) (hash-contains? indexed (row-id row)))
+     rows))
+  (and found (row-id found)))
 
 (define (reconciled-id old-rows new-rows id)
   (define indexed (id-index new-rows))
