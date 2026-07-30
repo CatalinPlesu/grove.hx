@@ -11,8 +11,10 @@
     (error "Grove icons must be a boolean")))
 
 (define (grove-start! #:icons [icons? #t]
-                      #:side [side 'left]
-                      #:width [width 32])
+         #:side
+         [side 'left]
+         #:width
+         [width 32])
   (validate-settings side width icons?)
   (helix.start! side width icons?))
 

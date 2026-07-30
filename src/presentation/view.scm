@@ -3,12 +3,19 @@
 (require (prefix-in line. "line.scm"))
 
 (provide build lines line-runs
-         x y width
-         hit-test
-         hit-row? hit-row-id hit-rail?
-         hit-inside?
-         hit-thumb-offset hit-resize-width
-         hit-scroll-offset hit-scroll-limit hit-page-amount)
+  x
+  y
+  width
+  hit-test
+  hit-row?
+  hit-row-id
+  hit-rail?
+  hit-inside?
+  hit-thumb-offset
+  hit-resize-width
+  hit-scroll-offset
+  hit-scroll-limit
+  hit-page-amount)
 
 (struct view-value (layout lines))
 (struct line-value (runs press-target))
@@ -34,66 +41,66 @@
              [remaining (layout.pane-slots current-layout)]
              [result '()])
     (if
-     (= offset (layout.height current-layout))
-     (reverse result)
-     (let* ([slot (and (pair? remaining) (car remaining))]
-            [rest (if (pair? remaining) (cdr remaining) '())]
-            [row (+ (layout.y current-layout) offset)])
-       (loop
-        (+ offset 1)
-        rest
-        (cons
-         (line-value
-          (line.build
-           slot
-           (- (layout.width current-layout) 1)
-           (layout.side current-layout)
-           (layout.rail-part-at current-layout row)
-           styles)
-          (and
-           slot
-           (not (layout.slot-pinned? slot))
-           (rows.row-pressable? (layout.slot-row slot))
-           (rows.row-id (layout.slot-row slot))))
-         result))))))
+      (= offset (layout.height current-layout))
+      (reverse result)
+      (let* ([slot (and (pair? remaining) (car remaining))]
+             [rest (if (pair? remaining) (cdr remaining) '())]
+             [row (+ (layout.y current-layout) offset)])
+        (loop
+          (+ offset 1)
+          rest
+          (cons
+            (line-value
+              (line.build
+                slot
+                (- (layout.width current-layout) 1)
+                (layout.side current-layout)
+                (layout.rail-part-at current-layout row)
+                styles)
+              (and
+                slot
+                (not (layout.slot-pinned? slot))
+                (rows.row-pressable? (layout.slot-row slot))
+                (rows.row-id (layout.slot-row slot))))
+            result))))))
 
 (define (build current-layout styles)
   (and
-   current-layout
-   (view-value
     current-layout
-    (build-lines current-layout styles))))
+    (view-value
+      current-layout
+      (build-lines current-layout styles))))
 
 (define (inside? view column row)
   (and
-   (>= column (x view))
-   (< column (+ (x view) (width view)))
-   (>= row (y view))
-   (< row (+ (y view) (height view)))))
+    (>= column (x view))
+    (< column (+ (x view) (width view)))
+    (>= row (y view))
+    (< row (+ (y view) (height view)))))
 
 (define (hit-test view column row)
   (unless
-   (and
-    (view-value? view)
-    (integer? column)
-    (integer? row))
-   (error "invalid View hit test"))
+    (and
+      (view-value? view)
+      (integer? column)
+      (integer? row))
+    (error "invalid View hit test"))
   (define current-layout (view-value-layout view))
   (cond
     [(not (inside? view column row))
-     (hit-value 'outside #f current-layout column row)]
+      (hit-value 'outside #f current-layout column row)]
     [(= column (layout.rail-x current-layout))
-     (hit-value 'rail #f current-layout column row)]
+      (hit-value 'rail #f current-layout column row)]
     [else
-     (define current-line
-       (list-ref (lines view) (- row (y view))))
-     (define row-id (line-value-press-target current-line))
-     (hit-value
-      (if row-id 'row 'inside)
-      row-id
-      current-layout
-      column
-      row)]))
+      (define current-line
+        (list-ref (lines view) (- row (y view))))
+      (define row-id (line-value-press-target current-line))
+      (hit-value
+        (if row-id 'row 'inside)
+        row-id
+        current-layout
+        column
+        row)]))
 
 (define (hit-row? hit)
   (equal? (hit-value-kind hit) 'row))
@@ -109,27 +116,27 @@
 
 (define (hit-thumb-offset hit)
   (and
-   (hit-rail? hit)
-   (layout.rail-thumb-offset
-    (hit-value-layout hit)
-    (hit-value-row hit))))
+    (hit-rail? hit)
+    (layout.rail-thumb-offset
+      (hit-value-layout hit)
+      (hit-value-row hit))))
 
 (define (hit-resize-width hit)
   (layout.rail-resize-width
-   (hit-value-layout hit)
-   (hit-value-column hit)))
+    (hit-value-layout hit)
+    (hit-value-column hit)))
 
 (define (hit-scroll-offset hit grab-offset)
   (layout.rail-scroll-offset
-   (hit-value-layout hit)
-   (hit-value-row hit)
-   grab-offset))
+    (hit-value-layout hit)
+    (hit-value-row hit)
+    grab-offset))
 
 (define (hit-scroll-limit hit)
   (layout.rail-scroll-limit
-   (hit-value-layout hit)))
+    (hit-value-layout hit)))
 
 (define (hit-page-amount hit)
   (layout.rail-page-amount
-   (hit-value-layout hit)
-   (hit-value-row hit)))
+    (hit-value-layout hit)
+    (hit-value-row hit)))

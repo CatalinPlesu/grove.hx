@@ -28,23 +28,23 @@
   (define active-path (host.active-path))
   (define base-expansion
     (if
-     (equal? observed-root (model.root model-at-observation))
-     (model.expansion model-at-observation)
-     (expansion.empty)))
+      (equal? observed-root (model.root model-at-observation))
+      (model.expansion model-at-observation)
+      (expansion.empty)))
   (define active-id
     (and
-     scan-active-path?
-     (path.id-for-path observed-root active-path)))
+      scan-active-path?
+      (path.id-for-path observed-root active-path)))
   (define scan-scope
     (if
-     active-id
-     (expansion.expand-ancestors base-expansion active-id)
-     base-expansion))
+      active-id
+      (expansion.expand-ancestors base-expansion active-id)
+      base-expansion))
   (model.observation-snapshot
-   observed-root
-   (scanner.scan observed-root scan-scope)
-   (git.observe observed-root)
-   active-path))
+    observed-root
+    (scanner.scan observed-root scan-scope)
+    (git.observe observed-root)
+    active-path))
 
 (define (refresh-now!)
   (define snapshot (observe *model* #f))
@@ -56,20 +56,20 @@
 (define (subscribe-to-refresh!)
   (define (schedule-next!)
     (enqueue-thread-local-callback-with-delay
-     REFRESH-INTERVAL-MS
-     (lambda ()
-       (refresh-now!)
-       (schedule-next!))))
+      REFRESH-INTERVAL-MS
+      (lambda ()
+        (refresh-now!)
+        (schedule-next!))))
   (schedule-next!))
 
 (define (execute-command! command)
   (cond
     [(model.refresh-command? command)
-     (schedule-refresh!)]
+      (schedule-refresh!)]
     [(model.open-file-command? command)
-     (host.open-file!
-      (model.open-file-command-path command)
-      (model.open-file-command-mode command))]
+      (host.open-file!
+        (model.open-file-command-path command)
+        (model.open-file-command-mode command))]
     [else (error "unknown Model command")]))
 
 (define (dispatch! message)
@@ -83,35 +83,35 @@
 
 (define (render-current! geometry frame)
   (if
-   *focus-next-frame?*
-   (let ([snapshot (observe *model* #t)])
-     (set! *focus-next-frame?* #f)
-     (dispatch! (model.focus-frame-observed snapshot geometry)))
-   (dispatch! (model.geometry-observed geometry)))
+    *focus-next-frame?*
+    (let ([snapshot (observe *model* #t)])
+      (set! *focus-next-frame?* #f)
+      (dispatch! (model.focus-frame-observed snapshot geometry)))
+    (dispatch! (model.geometry-observed geometry)))
   (define model-at-render *model*)
   (define current-view
     (view.build
-     (model.resolved-layout model-at-render)
-     (theme.current-styles (model.icons? model-at-render))))
+      (model.resolved-layout model-at-render)
+      (theme.current-styles (model.icons? model-at-render))))
   (if current-view
-      (begin
-        (component.apply-clip!
-         (view.width current-view))
-        (render.draw! frame current-view)
-        (set! *latest-view* current-view))
-      (begin
-        (component.apply-clip! 0)
-        (set! *latest-view* #f)
-        (set! *input-state* (input.init))))
+    (begin
+      (component.apply-clip!
+        (view.width current-view))
+      (render.draw! frame current-view)
+      (set! *latest-view* current-view))
+    (begin
+      (component.apply-clip! 0)
+      (set! *latest-view* #f)
+      (set! *input-state* (input.init))))
   frame)
 
 (define (handle-event! event)
   (define input-result
     (input.step
-     *input-state*
-     *model*
-     *latest-view*
-     event))
+      *input-state*
+      *model*
+      *latest-view*
+      event))
   (set! *input-state* (input.result-state input-result))
   (define message (input.result-message input-result))
   (when message
@@ -137,7 +137,7 @@
     (error "Grove has already started"))
   (set! *started?* #t)
   (enqueue-thread-local-callback
-   (lambda () (start-runtime! side width icons?)))
+    (lambda () (start-runtime! side width icons?)))
   #t)
 
 (define (focus!)

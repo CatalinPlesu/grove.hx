@@ -12,8 +12,8 @@
 
 (define (set-clip! width)
   (if (equal? *clip-side* 'left)
-      (set-editor-clip-left! width)
-      (set-editor-clip-right! width)))
+    (set-editor-clip-left! width)
+    (set-editor-clip-right! width)))
 
 (define (apply-clip! width)
   (unless (equal? width *clip-width*)
@@ -26,19 +26,24 @@
   (apply-clip! 0)
   (define (render-component! _state rect frame)
     (render!
-     (layout.geometry
-      (area-x rect) (area-y rect) (area-width rect) (area-height rect))
-     frame))
+      (layout.geometry
+        (area-x rect)
+        (area-y rect)
+        (area-width rect)
+        (area-height rect))
+      frame))
   (define (handle-component-event! _state event)
     (if
-     (handle-event! event)
-     event-result/ignore
-     event-result/consume))
+      (handle-event! event)
+      event-result/ignore
+      event-result/consume))
   (push-component!
-   (new-component!
-    GROVE-NAME
-    #f
-    render-component!
-    (hash
-     "handle_event" handle-component-event!
-     "cursor" (lambda (_state _rect) #f)))))
+    (new-component!
+      GROVE-NAME
+      #f
+      render-component!
+      (hash
+        "handle_event"
+        handle-component-event!
+        "cursor"
+        (lambda (_state _rect) #f)))))

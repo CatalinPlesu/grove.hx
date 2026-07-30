@@ -10,16 +10,19 @@
   (cond
     [(not workspace-prefix) #f]
     [else
-     (define status-output
-       (command.run
-        (list "-C" root "status"
-              "--porcelain=v1" "-z"
-              "--untracked-files=all" "--ignored=matching"
-              "--" ".")))
-     (and
-      status-output
-      (with-handler
-       (lambda (_cause) #f)
-       (define path-statuses
-         (porcelain.parse status-output workspace-prefix))
-       (and path-statuses (git.build path-statuses))))]))
+      (define status-output
+        (command.run
+          (list "-C" root "status"
+            "--porcelain=v1"
+            "-z"
+            "--untracked-files=all"
+            "--ignored=matching"
+            "--"
+            ".")))
+      (and
+        status-output
+        (with-handler
+          (lambda (_cause) #f)
+          (define path-statuses
+            (porcelain.parse status-output workspace-prefix))
+          (and path-statuses (git.build path-statuses))))]))

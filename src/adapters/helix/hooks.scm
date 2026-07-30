@@ -9,12 +9,12 @@
 (define (install! dispatch!)
   (define (observe-host!)
     (dispatch!
-     (model.host-observed
-      (host.workspace-root)
-      (host.active-path))))
+      (model.host-observed
+        (host.workspace-root)
+        (host.active-path))))
   (define (observe-unsaved!)
     (dispatch!
-     (model.unsaved-observed (host.unsaved-paths))))
+      (model.unsaved-observed (host.unsaved-paths))))
   (define (document-focus-lost! _event)
     (observe-host!))
   (define (document-opened! _document-id)
@@ -23,7 +23,7 @@
     (observe-unsaved!))
   (define (document-saved! document-id)
     (dispatch!
-     (model.save-started (editor-document->path document-id))))
+      (model.save-started (editor-document->path document-id))))
   (define (document-closed! _event)
     (observe-unsaved!))
   (register-hook 'document-focus-lost document-focus-lost!)

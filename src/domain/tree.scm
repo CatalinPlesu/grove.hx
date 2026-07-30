@@ -2,10 +2,15 @@
 (require (prefix-in natural. "natural.scm"))
 
 (provide file-tree-entry entry-id entry-kind
-         build unreadable-root
-         find
-         entry-depth entry-label
-         file-kind? directory-kind? expandable-kind? directory?)
+  build
+  unreadable-root
+  find
+  entry-depth
+  entry-label
+  file-kind?
+  directory-kind?
+  expandable-kind?
+  directory?)
 
 (struct file-tree-entry-value (id kind))
 
@@ -14,19 +19,20 @@
 
 (define (valid-kind? kind)
   (and
-   (member
-    kind
-    '(directory unreadable-directory file file-link
-                directory-link broken-link))
-   #t))
+    (member
+      kind
+      '(directory unreadable-directory file file-link
+        directory-link
+        broken-link))
+    #t))
 
 (define (file-kind? kind)
   (and (member kind '(file file-link)) #t))
 
 (define (directory-kind? kind)
   (and
-   (member kind '(directory unreadable-directory directory-link))
-   #t))
+    (member kind '(directory unreadable-directory directory-link))
+    #t))
 
 (define (expandable-kind? kind)
   (and (member kind '(directory unreadable-directory)) #t))
@@ -38,13 +44,13 @@
 
 (define (entry-rank entry final?)
   (if
-   (not final?)
-   0
-   (cond
-     [(directory-kind? (entry-kind entry))
-      0]
-     [(file-kind? (entry-kind entry)) 1]
-     [else 2])))
+    (not final?)
+    0
+    (cond
+      [(directory-kind? (entry-kind entry))
+        0]
+      [(file-kind? (entry-kind entry)) 1]
+      [else 2])))
 
 (define (ordered-before? left right)
   (let loop ([left-path (split-many (entry-id left) "/")]
@@ -53,35 +59,35 @@
       [(null? left-path) (pair? right-path)]
       [(null? right-path) #f]
       [(string=? (car left-path) (car right-path))
-       (loop (cdr left-path) (cdr right-path))]
+        (loop (cdr left-path) (cdr right-path))]
       [else
-       (define left-rank (entry-rank left (null? (cdr left-path))))
-       (define right-rank (entry-rank right (null? (cdr right-path))))
-       (cond
-         [(< left-rank right-rank) #t]
-         [(> left-rank right-rank) #f]
-         [else
-          (natural.before? (car left-path) (car right-path))])])))
+        (define left-rank (entry-rank left (null? (cdr left-path))))
+        (define right-rank (entry-rank right (null? (cdr right-path))))
+        (cond
+          [(< left-rank right-rank) #t]
+          [(> left-rank right-rank) #f]
+          [else
+            (natural.before? (car left-path) (car right-path))])])))
 
 (define (build entries)
   (cons
-   (file-tree-entry path.root-id 'directory)
-   (sort entries ordered-before?)))
+    (file-tree-entry path.root-id 'directory)
+    (sort entries ordered-before?)))
 
 (define (unreadable-root)
   (list
-   (file-tree-entry path.root-id 'unreadable-directory)))
+    (file-tree-entry path.root-id 'unreadable-directory)))
 
 (define (find file-tree id)
   (findf
-   (lambda (entry) (string=? id (entry-id entry)))
-   file-tree))
+    (lambda (entry) (string=? id (entry-id entry)))
+    file-tree))
 
 (define (entry-depth entry)
   (if
-   (path.root-id? (entry-id entry))
-   0
-   (length (split-many (entry-id entry) "/"))))
+    (path.root-id? (entry-id entry))
+    0
+    (length (split-many (entry-id entry) "/"))))
 
 (define (entry-label entry)
   (path.basename (entry-id entry)))
