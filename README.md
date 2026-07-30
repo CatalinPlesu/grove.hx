@@ -32,6 +32,11 @@ through Homebrew:
 brew install --HEAD ivoronin/ivoronin/hx-steel
 ```
 
+To build the Steel fork manually instead, follow
+[Up and running with Helix and Steel Scheme](https://www.tomwaddington.dev/steel-helix-first-steps.html).
+The guide covers the source build, `PATH` setup, and initial Helix Scheme
+configuration.
+
 The formula lives in a personal tap but installs `hx`, Steel, and `forge`
 directly from the upstream repository. Use Forge to install Grove and its
 Scheme dependencies:
