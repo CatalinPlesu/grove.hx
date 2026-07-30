@@ -23,13 +23,14 @@ star.
 
 ## Install
 
-Grove requires the Steel-enabled
-[`hx-steel`](https://github.com/mattwparas/helix/blob/steel-event-system/STEEL.md)
-build and does not work with stock Helix. On macOS, install the current build
-through Homebrew:
+Grove requires
+[Steel-enabled Helix](https://github.com/mattwparas/helix/blob/steel-event-system/STEEL.md)
+and does not work with stock Helix. On macOS, install the current
+[`helix-steel`](https://github.com/ivoronin/homebrew-ivoronin/blob/main/Formula/helix-steel.rb)
+formula through Homebrew:
 
 ```sh
-brew install --HEAD ivoronin/ivoronin/hx-steel
+brew install --HEAD ivoronin/ivoronin/helix-steel
 ```
 
 To build the Steel fork manually instead, follow
