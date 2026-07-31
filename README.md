@@ -23,10 +23,12 @@ directly from the upstream repository. To build the Steel fork manually instead,
 [Up and running with Helix and Steel Scheme](https://www.tomwaddington.dev/steel-helix-first-steps.html).
 The guide covers the source build, `PATH` setup, and initial Helix Scheme configuration.
 
-Use Forge to install Grove and its Scheme dependencies:
+Use the same Forge command for the initial install and later upgrades.
+`--force` installs Grove when absent and overwrites an existing installation
+with the latest revision:
 
 ```sh
-forge pkg install --git https://github.com/ivoronin/grove.hx.git
+forge pkg install --git https://github.com/ivoronin/grove.hx.git --force
 ```
 
 Add Grove to `~/.config/helix/init.scm`:
