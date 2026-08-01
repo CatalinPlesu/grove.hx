@@ -92,7 +92,9 @@
   (define current-view
     (view.build
       (model.resolved-layout model-at-render)
-      (theme.current-styles (model.icons? model-at-render))))
+      (theme.current-styles
+        (model.icons? model-at-render)
+        (model.guides? model-at-render))))
   (if current-view
     (begin
       (component.apply-clip!
@@ -118,9 +120,9 @@
     (dispatch! message))
   (input.result-pass-through? input-result))
 
-(define (start-runtime! side width icons?)
+(define (start-runtime! side width icons? guides?)
   (define initial-update
-    (model.init side width icons?))
+    (model.init side width icons? guides?))
   (set! *model* (model.update-result-model initial-update))
   (set! *latest-view* #f)
   (set! *input-state* (input.init))
@@ -132,12 +134,12 @@
   (when command
     (execute-command! command)))
 
-(define (start! side width icons?)
+(define (start! side width icons? guides?)
   (when *started?*
     (error "Grove has already started"))
   (set! *started?* #t)
   (enqueue-thread-local-callback
-    (lambda () (start-runtime! side width icons?)))
+    (lambda () (start-runtime! side width icons? guides?)))
   #t)
 
 (define (focus!)

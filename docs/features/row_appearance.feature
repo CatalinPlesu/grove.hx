@@ -17,6 +17,60 @@ Feature: Present File tree rows
     When the "folder" directory is expanded
     Then "inside.txt" is indented two columns from "folder"
 
+  Scenario: Show Guides
+    Given a Workspace containing entries
+      | kind      | path                        | target | lines |
+      | file      | anchor.txt                  |        |       |
+      | directory | outer                       |        |       |
+      | directory | outer/inner                 |        |       |
+      | file      | outer/inner/inside.txt      |        |       |
+    And "anchor.txt" is Active
+    When Helix starts with Grove in that Workspace
+    Then the Workspace root has neither an Ancestor trace nor a Leaf mark
+    And "anchor.txt" has no Ancestor trace
+    And "anchor.txt" uses one Leaf mark
+    And "anchor.txt" uses the file icon
+    When the "outer" directory is expanded
+    And the "outer/inner" directory is expanded
+    Then "inner" uses 1 Ancestor trace
+    And "inside.txt" uses 2 Ancestor traces
+    And "inside.txt" uses one Leaf mark
+    And the Ancestor traces and Leaf mark on "inside.txt" use the indent-guide theme foreground
+
+  Scenario: Disable guides
+    Given a Workspace containing entries
+      | kind      | path                        | target | lines |
+      | file      | anchor.txt                  |        |       |
+      | directory | outer                       |        |       |
+      | file      | outer/inside.txt            |        |       |
+    And "anchor.txt" is Active
+    And Grove settings
+      | setting | value    |
+      | side    | left     |
+      | width   | 24       |
+      | icons   | disabled |
+      | guides  | disabled |
+    When Helix starts with Grove in that Workspace
+    Then "anchor.txt" has no Leaf mark
+    When the "outer" directory is expanded
+    Then "inside.txt" has no Ancestor trace
+    And "inside.txt" has no Leaf mark
+
+  Scenario: Dim guides when the theme leaves their foreground unspecified
+    Given a Workspace containing entries
+      | kind      | path             | target | lines |
+      | file      | anchor.txt       |        |       |
+      | directory | outer            |        |       |
+      | file      | outer/inside.txt |        |       |
+    And "anchor.txt" is Active
+    And Grove settings
+      | setting | value    |
+      | icons   | disabled |
+    And the Host theme has no indent-guide foreground
+    When Helix starts with Grove in that Workspace
+    And the "outer" directory is expanded
+    Then the Ancestor trace and Leaf mark on "inside.txt" use the dimmed theme text foreground
+
   Scenario: Present links by target state
     Given a Workspace containing entries
       | kind                      | path            | target    | lines |
@@ -35,6 +89,9 @@ Feature: Present File tree rows
     Then "file-link" uses the File link icon
     And "directory-link" uses the directory icon
     And "broken-link" uses the Broken link icon
+    And "file-link" uses one Leaf mark
+    And "directory-link" uses one Leaf mark
+    And "broken-link" uses one Leaf mark
 
   Scenario: Present an unreadable directory as failed
     Given a Workspace containing entries
@@ -75,6 +132,12 @@ Feature: Present File tree rows
       | directory | folder            |        |       |
       | file      | folder/inside.txt |        |       |
     And "anchor.txt" is Active
-    When Helix starts with Grove on the "left" at width 24 with icons disabled
+    And Grove settings
+      | setting | value    |
+      | side    | left     |
+      | width   | 24       |
+      | icons   | disabled |
+    When Helix starts with Grove in that Workspace
     Then "folder" can expand
     And Workspace, "folder", and "anchor.txt" labels occupy reclaimed icon columns
+    And "anchor.txt" uses one Leaf mark

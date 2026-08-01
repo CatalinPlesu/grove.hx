@@ -2,7 +2,7 @@
 (require (prefix-in layout. "../domain/layout.scm"))
 (require (prefix-in devicons. "devicons/devicons.scm"))
 
-(provide styles build
+(provide styles guides-style build
   run-text
   run-style
   run-icon-color
@@ -16,12 +16,14 @@
   (background text cursor active-file pinned
     rail-track
     rail-thumb
+    guides
     error-foreground
     deleted-foreground
     modified-foreground
     created-foreground
     unsaved-foreground
     icon-palette))
+(struct guides-style (foreground dim?))
 (struct color (red green blue))
 (struct run (text style icon-color foreground dim?))
 
@@ -38,6 +40,8 @@
          rail-track
          #:rail-thumb
          rail-thumb
+         #:guides
+         guides
          #:error
          error-foreground
          #:deleted
@@ -58,6 +62,7 @@
     pinned
     rail-track
     rail-thumb
+    guides
     error-foreground
     deleted-foreground
     modified-foreground
@@ -91,8 +96,19 @@
     [(equal? kind 'broken-link) "󰌺"]
     [else #f]))
 
-(define (row-indent row)
-  (spaces (max 0 (- (* 2 (rows.row-depth row)) 1))))
+(define (ancestor-trace-indent depth)
+  (cond
+    [(= depth 0) ""]
+    [(= depth 1) " "]
+    [else
+      (string-append " │" (ancestor-trace-indent (- depth 1)))]))
+
+(define (row-indent row guides)
+  (define depth (rows.row-depth row))
+  (if
+    guides
+    (ancestor-trace-indent depth)
+    (spaces (max 0 (- (* 2 depth) 1)))))
 
 (define (git-foreground row styles)
   (define status (rows.row-git-status row))
@@ -116,6 +132,14 @@
 
 (define (make-run text style [icon-color #f] [foreground #f] [dim? #f])
   (run text style icon-color foreground dim?))
+
+(define (guides-run text style guides)
+  (make-run
+    text
+    style
+    #f
+    (and guides (guides-style-foreground guides))
+    (and guides (guides-style-dim? guides))))
 
 (define (run-with-text source text)
   (make-run
@@ -162,58 +186,54 @@
       (devicons.icon-green icon)
       (devicons.icon-blue icon))))
 
-(define (indicator-runs row icon styles style)
-  (define kind (rows.row-kind row))
-  (define icons? (styles-value-icon-palette styles))
-  (define triangle (if (rows.row-expanded? row) "▾" "▸"))
-  (define error-color (styles-value-error-foreground styles))
+(define (marker-runs row styles style)
+  (define guides (styles-value-guides styles))
   (cond
-    [icon
+    [(= (rows.row-depth row) 0) '()]
+    [(rows.row-expandable? row)
       (list
         (make-run
-          (devicons.icon-glyph icon)
-          style
-          (and (not (rows.row-cursor? row)) (icon-color icon))))]
-    [(and (= (rows.row-depth row) 0)
-        (equal? kind 'unreadable-directory))
-      (if
-        icons?
-        (list
-          (make-run " " style)
-          (make-run (error-icon-for-kind kind) style #f error-color))
-        '())]
-    [(= (rows.row-depth row) 0)
-      (if icons? (list (make-run " 󰙅" style)) '())]
-    [(equal? kind 'unreadable-directory)
-      (append
-        (list (make-run triangle style))
-        (if
-          icons?
-          (list
-            (make-run " " style)
-            (make-run (error-icon-for-kind kind) style #f error-color))
-          '()))]
-    [(equal? kind 'broken-link)
-      (list
-        (if
-          icons?
-          (make-run (error-icon-for-kind kind) style #f error-color)
-          (make-run " " style)))]
-    [(equal? kind 'directory-link)
-      (list (make-run (if icons? "  " " ") style))]
-    [(not (equal? kind 'directory))
-      (list (make-run " " style))]
+          (if (rows.row-expanded? row) "▾" "▸")
+          style))]
     [else
       (list
-        (make-run
-          (if
-            icons?
-            (string-append
-              triangle
-              " "
-              (if (rows.row-expanded? row) "" ""))
-            triangle)
-          style))]))
+        (guides-run
+          (if guides "·" " ")
+          style
+          guides))]))
+
+(define (entry-icon-run row icon styles style)
+  (define kind (rows.row-kind row))
+  (define error-icon (error-icon-for-kind kind))
+  (cond
+    [icon
+      (make-run
+        (devicons.icon-glyph icon)
+        style
+        (and (not (rows.row-cursor? row)) (icon-color icon)))]
+    [error-icon
+      (make-run
+        error-icon
+        style
+        #f
+        (styles-value-error-foreground styles))]
+    [(= (rows.row-depth row) 0)
+      (make-run "󰙅" style)]
+    [(member kind '(directory directory-link))
+      (make-run
+        (if (rows.row-expanded? row) "" "")
+        style)]
+    [else #f]))
+
+(define (icon-runs row icon styles style)
+  (define icon-run
+    (and
+      (styles-value-icon-palette styles)
+      (entry-icon-run row icon styles style)))
+  (if
+    icon-run
+    (list (make-run " " style) icon-run)
+    '()))
 
 (define (row-runs slot width styles)
   (define row (layout.slot-row slot))
@@ -222,15 +242,7 @@
   (define style (base-style row styles pinned?))
   (define kind (rows.row-kind row))
   (define icon (file-icon row styles))
-  (define leading
-    (string-append
-      (row-indent row)
-      (if
-        (and
-          (styles-value-icon-palette styles)
-          (member kind '(file file-link broken-link)))
-        "  "
-        "")))
+  (define guides (styles-value-guides styles))
   (define error-icon (error-icon-for-kind kind))
   (define label-foreground
     (if
@@ -243,8 +255,13 @@
   (define body
     (fit-runs
       (append
-        (list (make-run leading style))
-        (indicator-runs row icon styles style)
+        (list
+          (guides-run
+            (row-indent row guides)
+            style
+            guides))
+        (marker-runs row styles style)
+        (icon-runs row icon styles style)
         (list
           (make-run " " style)
           (make-run

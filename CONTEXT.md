@@ -126,6 +126,22 @@ The single trailing `●` presenting either Unsaved status. It appears on
 collapsed directories and the Workspace root, and never becomes a count.
 _Avoid_: Buffer overlay, Buffer mark, dirty count
 
+**Guides**:
+The visual cues before File tree labels that expose ancestry and expansion
+capability. Ancestor traces follow non-root directories through nested rows;
+Leaf marks identify non-root rows that cannot expand.
+_Avoid_: Decoration, Hierarchy decoration
+
+**Ancestor trace**:
+The muted vertical stroke representing one non-root ancestor directory of a
+Visible row. The Workspace root contributes none.
+_Avoid_: Hierarchy guide, Indent guide, Folder level line, tree branch
+
+**Leaf mark**:
+The single leading `·` identifying a non-root Visible row without an expansion
+control. It occupies that control's position without replacing the entry icon.
+_Avoid_: File dot, bullet
+
 **Visible row**:
 One semantic filesystem entry in the current File tree. Its stable identity
 drives navigation. The Workspace root has its own identity. Every non-root row

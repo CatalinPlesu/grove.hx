@@ -5,7 +5,8 @@ Feature: Adapt File tree icons to the theme
       | path       |
       | anchor.txt |
     And "anchor.txt" is Active
-    When Helix starts with Grove under background "<background>" and text "<text>"
+    And the Host theme uses background "<background>" and text "<text>"
+    When Helix starts with Grove in that Workspace
     Then "anchor.txt" uses the "<variant>" file icon variant
 
     Examples:

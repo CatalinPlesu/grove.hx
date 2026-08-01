@@ -8,6 +8,7 @@
   root
   resolved-layout
   icons?
+  guides?
   focused?
   expansion
   observation-snapshot
@@ -41,7 +42,8 @@
     geometry
     width
     side
-    icons?))
+    icons?
+    guides?))
 
 (struct observation-snapshot (root tree git-status active-path))
 (struct host-observed (root active-path))
@@ -66,6 +68,7 @@
 
 (define root model-value-root)
 (define icons? model-value-icons?)
+(define guides? model-value-guides?)
 (define expansion model-value-expansion)
 (define (focused? model)
   (and (model-value-cursor model) #t))
@@ -103,7 +106,9 @@
          #:side
          [side-value (model-value-side model)]
          #:icons
-         [icons-value (model-value-icons? model)])
+         [icons-value (model-value-icons? model)]
+         #:guides
+         [guides-value (model-value-guides? model)])
   (model-value
     root-value
     file-tree
@@ -116,7 +121,8 @@
     geometry-value
     width-value
     side-value
-    icons-value))
+    icons-value
+    guides-value))
 
 (define (visible-rows model)
   (if
@@ -150,7 +156,7 @@
 (define (request-refresh model)
   (update-result model (refresh-command)))
 
-(define (init side-value width-value icons-value)
+(define (init side-value width-value icons-value guides-value)
   (update-result
     (model-value
       #f
@@ -164,7 +170,8 @@
       #f
       width-value
       side-value
-      icons-value)
+      icons-value
+      guides-value)
     (refresh-command)))
 
 (define (reconciled-anchor old-model new-model new-rows)

@@ -34,6 +34,7 @@ _NAMED_KEYS = {
 TEST_THEME = """\
 inherits = "base16_default_dark"
 "ui.text.focus" = { bg = "#303030" }
+"ui.virtual.indent-guide" = { fg = "#888888" }
 "ui.menu.selected" = { fg = "#00aaff", bg = "#404040" }
 "ui.virtual.ruler" = { bg = "#202020" }
 "error" = { fg = "#ff00ff" }
@@ -42,6 +43,10 @@ inherits = "base16_default_dark"
 "diff.plus" = { fg = "#00ff00" }
 "info" = { fg = "#00ffff" }
 """
+TEST_THEME_WITHOUT_INDENT_GUIDE = TEST_THEME.replace(
+    '"ui.virtual.indent-guide" = { fg = "#888888" }\n',
+    "",
+)
 
 
 @dataclass

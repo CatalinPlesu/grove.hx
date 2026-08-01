@@ -13,7 +13,11 @@ Feature: Size and place the Pane
       | path       |
       | anchor.txt |
     And "anchor.txt" is Active
-    When Helix starts with Grove on the "<side>" at width <width>
+    And Grove settings
+      | setting | value   |
+      | side    | <side>  |
+      | width   | <width> |
+    When Helix starts with Grove in that Workspace
     Then Grove is Docked on the "<side>" at width <width>
 
     Examples:
@@ -26,7 +30,11 @@ Feature: Size and place the Pane
       | path       |
       | anchor.txt |
     And "anchor.txt" is Active
-    When Helix starts with Grove on the "left" at width <initial>
+    And Grove settings
+      | setting | value     |
+      | side    | left      |
+      | width   | <initial> |
+    When Helix starts with Grove in that Workspace
     And the terminal width becomes <terminal> columns
     And Grove is focused
     And Grove receives "<key>"
@@ -47,7 +55,11 @@ Feature: Size and place the Pane
       | path       |
       | anchor.txt |
     And "anchor.txt" is Active
-    When Helix starts with Grove on the "<side>" at width 24
+    And Grove settings
+      | setting | value  |
+      | side    | <side> |
+      | width   | 24     |
+    When Helix starts with Grove in that Workspace
     And the terminal width becomes <terminal> columns
     And the "<side>" Rail is dragged toward width <requested>
     Then Grove is Docked on the "<side>" at width <expected>
@@ -85,7 +97,11 @@ Feature: Size and place the Pane
       | path       |
       | anchor.txt |
     And "anchor.txt" is Active
-    When Helix starts with Grove on the "<side>" at width 30
+    And Grove settings
+      | setting | value  |
+      | side    | <side> |
+      | width   | 30     |
+    When Helix starts with Grove in that Workspace
     And the terminal width becomes 31 columns
     Then Grove is Docked on the "<side>" at width 30
     When the terminal width becomes 30 columns

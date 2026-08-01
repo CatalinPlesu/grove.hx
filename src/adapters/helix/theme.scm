@@ -44,11 +44,13 @@
 (define (glyph-style source foreground-color background-color)
   (style-bg (style-fg source foreground-color) background-color))
 
-(define (current-styles icons?)
+(define (current-styles icons? guides?)
   (define background-scope (theme-scope-ref "ui.background"))
   (define text-scope (theme-scope-ref "ui.text"))
   (define scroll-scope (theme-scope-ref "ui.menu.scroll"))
   (define ruler-scope (theme-scope-ref "ui.virtual.ruler"))
+  (define guides-scope
+    (theme-scope-ref "ui.virtual.indent-guide"))
   (define text-foreground-color
     (or (style->fg text-scope) Color/Reset))
   (define grove-background-color
@@ -116,6 +118,13 @@
     rail-track-style
     #:rail-thumb
     rail-thumb-style
+    #:guides
+    (and
+      guides?
+      (let ([foreground (style->fg guides-scope)])
+        (line.guides-style
+          (or foreground text-foreground-color)
+          (not foreground))))
     #:error
     (scope-foreground "error")
     #:deleted

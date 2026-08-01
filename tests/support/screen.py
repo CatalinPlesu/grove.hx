@@ -424,12 +424,12 @@ def _has_label(text: str, label: str) -> bool:
     start = len(text) - len(label)
     if start and not text[start - 1].isspace():
         return False
-    decoration = text[:start]
+    prefix = text[:start]
     return all(
         character.isspace()
-        or character in "▸▾"
+        or character in "▸▾│·"
         or unicodedata.category(character) in {"Co", "So"}
-        for character in decoration
+        for character in prefix
     )
 
 

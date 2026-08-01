@@ -3,43 +3,55 @@ import os
 import subprocess
 from pathlib import Path, PurePath
 
+import pytest
 from libtmux.server import Server
 from pytest import FixtureRequest
 from pytest_bdd import given, parsers, when
 
-from tests.support.host import DEFAULT_STARTUP, TEST_THEME, Helix, start
+from tests.support.host import (
+    DEFAULT_STARTUP,
+    TEST_THEME,
+    TEST_THEME_WITHOUT_INDENT_GUIDE,
+    Helix,
+    start,
+)
 from tests.support.waiting import eventually
 from tests.support.workspace import Workspace
 
 
-@when(
-    parsers.re(
-        r"^Helix starts with Grove(?:"
-        r" in that Workspace"
-        r"|(?P<default_icons_disabled> with icons disabled)"
-        r'| on the "(?P<side>[^"]+)" at width (?P<width>\d+)'
-        r"(?P<configured_icons_disabled> with icons disabled)?"
-        r")$"
-    ),
-    target_fixture="helix",
-)
+@pytest.fixture
+def grove_start_options() -> tuple[str, ...]:
+    return ()
+
+
+@pytest.fixture
+def helix_theme() -> str:
+    return TEST_THEME
+
+
+@given("Grove settings", target_fixture="grove_start_options")
+def configured_grove(datatable: list[list[str]]) -> tuple[str, ...]:
+    values = {"enabled": "#t", "disabled": "#f", "left": "'left", "right": "'right"}
+    return tuple(
+        f"#:{setting} {values.get(value, value)}" for setting, value in datatable[1:]
+    )
+
+
+@when("Helix starts with Grove in that Workspace", target_fixture="helix")
 def start_helix(
     tmp_path: Path,
     server: Server,
     request: FixtureRequest,
     workspace: Workspace,
     active_file: Path | None,
-    side: str | None = None,
-    width: str | None = None,
-    default_icons_disabled: str | None = None,
-    configured_icons_disabled: str | None = None,
+    grove_start_options: tuple[str, ...],
+    helix_theme: str,
 ) -> Helix:
-    options = []
-    if side:
-        options.extend((f"#:side '{side}", f"#:width {width}"))
-    if default_icons_disabled or configured_icons_disabled:
-        options.append("#:icons #f")
-    startup = f"(grove-start! {' '.join(options)})" if options else DEFAULT_STARTUP
+    startup = (
+        f"(grove-start! {' '.join(grove_start_options)})"
+        if grove_start_options
+        else DEFAULT_STARTUP
+    )
     return _launch(
         tmp_path,
         server,
@@ -47,34 +59,31 @@ def start_helix(
         workspace,
         active_file,
         startup=startup,
+        theme=helix_theme,
     )
 
 
-@when(
-    parsers.parse(
-        'Helix starts with Grove under background "{background}" and text "{text}"'
-    ),
-    target_fixture="helix",
+@given(
+    parsers.parse('the Host theme uses background "{background}" and text "{text}"'),
+    target_fixture="helix_theme",
 )
-def start_helix_with_theme_inputs(
-    tmp_path: Path,
-    server: Server,
-    request: FixtureRequest,
-    workspace: Workspace,
-    active_file: Path | None,
+def theme_with_inputs(
     background: str,
     text: str,
-) -> Helix:
-    return _launch(
-        tmp_path,
-        server,
-        request,
-        workspace,
-        active_file,
-        theme=TEST_THEME
+) -> str:
+    return (
+        TEST_THEME
         + f'"ui.background" = {{ bg = "{background}" }}\n'
-        + f'"ui.text" = {{ fg = "{text}" }}\n',
+        + f'"ui.text" = {{ fg = "{text}" }}\n'
     )
+
+
+@given(
+    "the Host theme has no indent-guide foreground",
+    target_fixture="helix_theme",
+)
+def theme_without_indent_guide_foreground() -> str:
+    return TEST_THEME_WITHOUT_INDENT_GUIDE
 
 
 @when(

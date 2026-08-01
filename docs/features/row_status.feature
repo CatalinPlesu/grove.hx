@@ -27,7 +27,11 @@ Feature: Present File tree status layers
       | kind | path                    | target | lines |
       | file | very-long-file-name.scm |        |       |
     And "very-long-file-name.scm" is Active
-    When Helix starts with Grove on the "left" at width 16
+    And Grove settings
+      | setting | value |
+      | side    | left  |
+      | width   | 16    |
+    When Helix starts with Grove in that Workspace
     Then "very-long-file-name.scm" clips without an Unsaved mark
     When the editor inserts "dirty-" without saving
     Then "very-long-file-name.scm" clips with its Unsaved mark visible
@@ -45,7 +49,10 @@ Feature: Present File tree status layers
       | renamed.txt     | renamed      | rename-before.txt |
       | copied.txt      | copied       | copy-source.txt   |
       | type-change.txt | type changed | modified.txt      |
-    When Helix starts with Grove with icons disabled
+    And Grove settings
+      | setting | value    |
+      | icons   | disabled |
+    When Helix starts with Grove in that Workspace
     Then "modified.txt" uses the modified Git foreground
     And "renamed.txt" uses the modified Git foreground
     And "copied.txt" uses the modified Git foreground
@@ -67,7 +74,10 @@ Feature: Present File tree status layers
       | nested/file.txt |
     And Git tracks "anchor.txt"
     And "nested" is a Git repository
-    When Helix starts with Grove with icons disabled
+    And Grove settings
+      | setting | value    |
+      | icons   | disabled |
+    When Helix starts with Grove in that Workspace
     And the "nested" directory is expanded
     Then "nested" uses the created Git foreground
     And "file.txt" uses the theme text foreground
@@ -167,7 +177,10 @@ Feature: Present File tree status layers
       Then ignored dimming on "ignored.txt" composes with the Cursor row background
 
     Scenario: Refresh Git status after every save
-      When Helix starts with Grove with icons disabled
+      Given Grove settings
+        | setting | value    |
+        | icons   | disabled |
+      When Helix starts with Grove in that Workspace
       And the editor inserts "saved-" and saves
       Then "clean.txt" uses the modified Git foreground
       And these rows carry no Unsaved mark

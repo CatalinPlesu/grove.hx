@@ -94,11 +94,12 @@ request to open its native file picker before Steel components mount.
 
 ## Configuration
 
-`grove-start!` accepts three optional settings:
+`grove-start!` accepts four optional settings:
 
 | Setting | Default | Values |
 | --- | --- | --- |
 | `#:icons` | `#t` | `#t` or `#f` |
+| `#:guides` | `#t` | `#t` or `#f` |
 | `#:side` | `'left` | `'left` or `'right` |
 | `#:width` | `32` | `16` through `64` |
 
@@ -107,6 +108,7 @@ For example:
 ```scheme
 (grove-start!
   #:icons #f
+  #:guides #f
   #:side 'right
   #:width 40)
 ```
@@ -117,6 +119,10 @@ Use this call directly for unconditional startup, or inside the
 The width includes the Rail, which separates Grove from the editor and acts as
 its scrollbar. Icons require a terminal font with Nerd Fonts 3.3 glyphs. Set
 `#:icons` to `#f` if you do not use one.
+
+Guides make File tree structure readable before each label. Ancestor traces
+follow parent directories through nested rows, while Leaf marks distinguish
+rows without an expansion control. Set `#:guides` to `#f` to hide both.
 
 ## Controls
 

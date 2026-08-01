@@ -163,7 +163,7 @@
         (loop (+ height 1))))))
 
 (define initial-model
-  (model.update-result-model (model.init 'left 16 #t)))
+  (model.update-result-model (model.init 'left 16 #t #t)))
 
 (define (updated model-value message)
   (model.update-result-model

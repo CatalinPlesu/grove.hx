@@ -128,6 +128,81 @@ def workspace_root_uses_one_icon(helix: Helix) -> None:
     assert not row.is_expandable and "" not in row.text
 
 
+@then("the Workspace root has neither an Ancestor trace nor a Leaf mark")
+def workspace_root_has_no_ancestor_trace_or_leaf_mark(helix: Helix) -> None:
+    row = _screen_with_rows(helix).workspace_root
+    assert row is not None
+    assert "│" not in row.text[: row.label_column()]
+    assert "·" not in row.text[: row.label_column()]
+
+
+@then(parsers.parse('"{name}" uses {count:d} Ancestor trace'))
+@then(parsers.parse('"{name}" uses {count:d} Ancestor traces'))
+def entry_uses_ancestor_traces(helix: Helix, name: str, count: int) -> None:
+    row = _screen_with_rows(helix, name).row(name)
+    assert row is not None
+    assert row.text[: row.label_column()].count("│") == count
+
+
+@then(parsers.parse('"{name}" has no Ancestor trace'))
+def entry_has_no_ancestor_trace(helix: Helix, name: str) -> None:
+    row = _screen_with_rows(helix, name).row(name)
+    assert row is not None
+    assert "│" not in row.text[: row.label_column()]
+
+
+@then(parsers.parse('"{name}" uses one Leaf mark'))
+def entry_uses_one_leaf_mark(helix: Helix, name: str) -> None:
+    row = _screen_with_rows(helix, name).row(name)
+    assert row is not None
+    assert row.text[: row.label_column()].count("·") == 1
+
+
+@then(parsers.parse('"{name}" has no Leaf mark'))
+def entry_has_no_leaf_mark(helix: Helix, name: str) -> None:
+    row = _screen_with_rows(helix, name).row(name)
+    assert row is not None
+    assert "·" not in row.text[: row.label_column()]
+
+
+@then(
+    parsers.parse(
+        'the Ancestor traces and Leaf mark on "{name}" '
+        "use the indent-guide theme foreground"
+    )
+)
+def ancestor_traces_and_leaf_mark_use_indent_guide_foreground(
+    helix: Helix,
+    name: str,
+) -> None:
+    row = _screen_with_rows(helix, name).row(name)
+    assert row is not None
+    assert row.foreground_before("│") == (136, 136, 136)
+    assert row.foreground_before("·") == (136, 136, 136)
+    assert not row.is_dimmed_before("│")
+    assert not row.is_dimmed_before("·")
+
+
+@then(
+    parsers.parse(
+        'the Ancestor trace and Leaf mark on "{name}" '
+        "use the dimmed theme text foreground"
+    )
+)
+def ancestor_trace_and_leaf_mark_use_dimmed_text_foreground(
+    helix: Helix,
+    name: str,
+) -> None:
+    row = _screen_with_rows(helix, name).row(name)
+    assert row is not None
+    text_foreground = row.foreground_before(row.label)
+    assert text_foreground is not None
+    assert row.foreground_before("│") == text_foreground
+    assert row.foreground_before("·") == text_foreground
+    assert row.is_dimmed_before("│")
+    assert row.is_dimmed_before("·")
+
+
 @then(parsers.parse('"{file}" aligns with "{directory}" in icon mode'))
 def icon_mode_entries_align(helix: Helix, file: str, directory: str) -> None:
     screen = _screen_with_rows(helix, file, directory)
