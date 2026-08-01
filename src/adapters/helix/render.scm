@@ -4,49 +4,39 @@
 
 (provide draw!)
 
-(define (apply-run-icon-color run)
-  (define style (line.run-style run))
-  (define color (line.run-icon-color run))
-  (if color
-    (style-fg
-      style
-      (Color/rgb
-        (line.color-red color)
-        (line.color-green color)
-        (line.color-blue color)))
-    style))
-
-(define (apply-run-style run)
-  (define icon-colored-style (apply-run-icon-color run))
-  (define foreground (line.run-foreground run))
-  (define complete-style
-    (if foreground
-      (style-fg icon-colored-style foreground)
-      icon-colored-style))
-  (if (line.run-dim? run)
-    (style-with-dim complete-style)
-    complete-style))
-
-(define (draw-line! frame runs column row)
-  (let loop ([remaining runs] [x column])
+(define (draw-line! frame current-line current-view row)
+  (buffer/clear-with
+    frame
+    (area
+      (view.content-x current-view)
+      row
+      (- (view.width current-view) 1)
+      1)
+    (style-bg (style) (line.line-background current-line)))
+  (let loop
+    ([remaining (line.line-runs current-line)]
+      [column (view.content-x current-view)])
     (unless (null? remaining)
       (define run (car remaining))
       (define text (line.run-text run))
       (frame-set-string!
         frame
-        x
+        column
         row
         text
-        (apply-run-style run))
-      (loop (cdr remaining) (+ x (string-length text))))))
+        (line.run-style run))
+      (loop (cdr remaining) (+ column (string-length text)))))
+  (define rail (line.line-rail current-line))
+  (frame-set-string!
+    frame
+    (view.rail-x current-view)
+    row
+    (line.run-text rail)
+    (line.run-style rail)))
 
 (define (draw! frame current-view)
   (let loop ([remaining (view.lines current-view)]
              [row (view.y current-view)])
     (unless (null? remaining)
-      (draw-line!
-        frame
-        (view.line-runs (car remaining))
-        (view.x current-view)
-        row)
+      (draw-line! frame (car remaining) current-view row)
       (loop (cdr remaining) (+ row 1)))))

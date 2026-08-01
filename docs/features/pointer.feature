@@ -43,7 +43,7 @@ Feature: Use the pointer in Grove
     And "anchor.txt" is Active
     When Helix starts with Grove in that Workspace
     And the Workspace root becomes unreadable
-    Then "workspace" uses the unreadable-folder icon and error foreground
+    Then "workspace" uses the unreadable-directory icon and error foreground
     When "workspace" is pressed
     Then the editor remains active
 

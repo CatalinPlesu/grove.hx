@@ -22,6 +22,7 @@
 (define *input-state* #f)
 (define *focus-next-frame?* #f)
 (define *started?* #f)
+(define *theme-sources* '())
 
 (define (observe model-at-observation scan-active-path?)
   (define observed-root (host.workspace-root))
@@ -92,7 +93,8 @@
   (define current-view
     (view.build
       (model.resolved-layout model-at-render)
-      (theme.current-styles
+      (theme.resolve
+        *theme-sources*
         (model.icons? model-at-render)
         (model.guides? model-at-render))))
   (if current-view
@@ -134,10 +136,11 @@
   (when command
     (execute-command! command)))
 
-(define (start! side width icons? guides?)
+(define (start! side width icons? guides? theme-sources)
   (when *started?*
     (error "Grove has already started"))
   (set! *started?* #t)
+  (set! *theme-sources* theme-sources)
   (enqueue-thread-local-callback
     (lambda () (start-runtime! side width icons? guides?)))
   #t)

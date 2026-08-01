@@ -39,6 +39,20 @@ def eventually(host: Helix, check: Check) -> Screen:
     raise AssertionError(f"{last_mismatch}\n\nLast frame:\n{frame}")
 
 
+def focus_grove(host: Helix) -> None:
+    before = eventually(
+        host,
+        lambda screen: None if screen.rail is not None else "Grove did not render",
+    ).grove_row_styles
+    host.focus_grove()
+    eventually(
+        host,
+        lambda screen: (
+            None if screen.grove_row_styles != before else "Grove did not render focus"
+        ),
+    )
+
+
 def consistently(
     host: Helix,
     check: Check,

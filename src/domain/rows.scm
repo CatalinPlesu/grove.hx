@@ -15,7 +15,6 @@
   row-git-status
   row-unsaved-status
   row-cursor?
-  row-active-file?
   row-file?
   row-expandable?
   row-pressable?
@@ -30,8 +29,7 @@
   (id relative-id path kind label depth ancestor-ids expanded?
     git-status
     unsaved-status
-    cursor?
-    active-file?))
+    cursor?))
 (define (row-file? row)
   (tree.file-kind? (row-kind row)))
 
@@ -76,7 +74,6 @@
       (tree.directory? entry))))
 
 (define (entry-row root git-status unsaved-paths
-         active-path
          expansion-value
          cursor
          entry)
@@ -112,11 +109,9 @@
         (expansion.contains? expansion-value relative-id)))
     (entry-git-status git-status entry)
     (unsaved-status kind absolute-path unsaved-paths)
-    (and cursor (equal? cursor id))
-    (and active-path (string=? active-path absolute-path))))
+    (and cursor (equal? cursor id))))
 
 (define (build root file-tree git-status unsaved-paths
-         active-path
          expansion-value
          cursor)
   (let loop ([remaining file-tree] [result '()])
@@ -130,7 +125,6 @@
               root
               git-status
               unsaved-paths
-              active-path
               expansion-value
               cursor
               (car remaining))

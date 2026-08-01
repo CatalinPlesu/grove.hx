@@ -25,10 +25,9 @@ The Workspace file in Helix's active editor split. Only Host observation changes
 it; an open command never predicts it. Regular refresh does not expand
 or scan through collapsed ancestors only to follow it. Focusing Grove takes a
 complete observation, scans the Active file path, then expands and reveals it
-when Pane is available. The row is highlighted whenever it is Visible. A
-present Unsaved mark preserves that emphasis. Normal activation only returns
-control to Helix, preserving the editor cursor and viewport. Split activation
-still opens the requested split.
+when Pane is available. When Visible, it uses ordinary row presentation. Normal
+activation only returns control to Helix, preserving the editor cursor and
+viewport. Split activation still opens the requested split.
 _Avoid_: Cursor, selected row
 
 **Editor view**:
@@ -76,6 +75,11 @@ editor, its optional thumb represents the viewport, and horizontal dragging
 resizes Grove.
 _Avoid_: Separator, scrollbar column
 
+**Theme role**:
+A named visual part of Grove. Its documented colors can follow a Helix theme
+key or use fixed colors.
+_Avoid_: Style role, theme slot
+
 **File tree**:
 One immutable ordered filesystem hierarchy containing the entries currently
 known to Grove from the latest Observation snapshot. Its Workspace root is a
@@ -111,8 +115,8 @@ use the status foreground directly. Directory names use the strongest status
 beneath their path, including collapsed descendants, in this order: conflict,
 deleted, modified, created. Ignored status dims only the exact entry label. Git
 status never controls the File tree or recolors entry icons and Unsaved marks.
-Cursor and Active file styling keep the Git foreground while applying their own
-background and modifiers. Git status is scoped to the Workspace.
+Cursor styling keeps the Git foreground while applying its row background. Git
+status is scoped to the Workspace.
 _Avoid_: Git overlay, Git snapshot, Git truth, Git mark
 
 **Unsaved status**:

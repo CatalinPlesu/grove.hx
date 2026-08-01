@@ -6,6 +6,7 @@ pytest_plugins = (
     "tests.acceptance.steps.tree",
     "tests.acceptance.steps.pointer",
     "tests.acceptance.steps.presentation",
+    "tests.acceptance.steps.theming",
 )
 
 scenarios("../../docs/features")

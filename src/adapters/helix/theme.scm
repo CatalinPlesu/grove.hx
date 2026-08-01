@@ -1,141 +1,76 @@
 (require "helix/components.scm")
-(require (prefix-in line. "../../presentation/line.scm"))
+(require (prefix-in resolved. "../../presentation/theme.scm"))
 
-(provide current-styles)
+(provide resolve)
 
-(define (color-channel color query)
-  (and color (with-handler (lambda (_cause) #f) (query color))))
-
-(define (linear-channel channel)
-  (define value (/ channel 255.0))
-  (if (<= value 0.04045)
-    (/ value 12.92)
-    (expt (/ (+ value 0.055) 1.055) 2.4)))
-
-(define (color-luminance color)
-  (define red (color-channel color Color-red))
-  (define green (color-channel color Color-green))
-  (define blue (color-channel color Color-blue))
+(define (color-brightness color)
   (and
-    red
-    green
-    blue
-    (+ (* 0.2126 (linear-channel red))
-      (* 0.7152 (linear-channel green))
-      (* 0.0722 (linear-channel blue)))))
+    color
+    (with-handler
+      (lambda (_cause) #f)
+      (+
+        (* 299 (Color-red color))
+        (* 587 (Color-green color))
+        (* 114 (Color-blue color))))))
 
-(define (icon-palette-for background text)
-  (define background-luminance
-    (color-luminance (style->bg background)))
-  (define text-luminance
-    (color-luminance (style->fg text)))
+(define (icon-palette-for background foreground)
+  (define background-brightness (color-brightness background))
+  (define foreground-brightness (color-brightness foreground))
+  (if
+    (cond
+      [background-brightness (>= background-brightness 187500)]
+      [foreground-brightness (<= foreground-brightness 117000)]
+      [else #f])
+    'light
+    'dark))
+
+(define (resolve-style sources role default-scope)
+  (define source (cdr (assoc role sources)))
   (cond
-    [background-luminance
-      (if (>= background-luminance 0.5) 'light 'dark)]
-    [text-luminance
-      (if (> text-luminance 0.179) 'dark 'light)]
-    [else 'dark]))
+    [(string? source) (theme-scope-ref source)]
+    [source source]
+    [else (theme-scope-ref default-scope)]))
 
-(define (materialize-style style foreground-color background-color)
-  (style-bg
-    (style-fg style (or (style->fg style) foreground-color))
-    (or (style->bg style) background-color)))
+(define (resolve sources icons? guides?)
+  (define pane-source
+    (resolve-style sources 'pane-background "ui.background"))
+  (define pane-background
+    (or (style->bg pane-source) Color/Reset))
+  (define visible-source
+    (resolve-style sources 'visible-row "ui.text"))
+  (define visible-foreground
+    (or (style->fg visible-source) Color/Reset))
+  (define visible-background
+    (or (style->bg visible-source) pane-background))
+  (define rail-source
+    (resolve-style sources 'rail "ui.menu.scroll"))
+  (define (row role default-scope)
+    (define source (resolve-style sources role default-scope))
+    (resolved.row-colors
+      (or (style->bg source) visible-background)
+      (or (style->fg source) visible-foreground)))
+  (define (foreground role default-scope fallback)
+    (or (style->fg (resolve-style sources role default-scope)) fallback))
 
-(define (glyph-style source foreground-color background-color)
-  (style-bg (style-fg source foreground-color) background-color))
-
-(define (current-styles icons? guides?)
-  (define background-scope (theme-scope-ref "ui.background"))
-  (define text-scope (theme-scope-ref "ui.text"))
-  (define scroll-scope (theme-scope-ref "ui.menu.scroll"))
-  (define ruler-scope (theme-scope-ref "ui.virtual.ruler"))
-  (define guides-scope
-    (theme-scope-ref "ui.virtual.indent-guide"))
-  (define text-foreground-color
-    (or (style->fg text-scope) Color/Reset))
-  (define grove-background-color
-    (or (style->bg background-scope) Color/Reset))
-  (define rail-track-color
-    (or (style->bg scroll-scope) grove-background-color))
-  (define rail-thumb-color
-    (or (style->fg scroll-scope) rail-track-color))
-  (define background-style
-    (materialize-style
-      background-scope
-      text-foreground-color
-      grove-background-color))
-  (define text-style
-    (materialize-style
-      text-scope
-      text-foreground-color
-      grove-background-color))
-  (define pinned-style
-    (style-bg
-      text-style
-      (or (style->bg ruler-scope) grove-background-color)))
-  (define cursor-scope (theme-scope-ref "ui.menu.selected"))
-  (define cursor-source
-    (if (and (not (style->fg cursor-scope))
-         (not (style->bg cursor-scope)))
-      (style-with-reversed cursor-scope)
-      cursor-scope))
-  (define cursor-style
-    (materialize-style
-      cursor-source
-      text-foreground-color
-      grove-background-color))
-  (define active-file-style
-    (materialize-style
-      (theme-scope-ref "ui.text.focus")
-      text-foreground-color
-      grove-background-color))
-  (define rail-track-style
-    (glyph-style
-      scroll-scope
-      rail-track-color
-      grove-background-color))
-  (define rail-thumb-style
-    (glyph-style
-      scroll-scope
-      rail-thumb-color
-      grove-background-color))
-  (define (scope-foreground scope)
-    (or
-      (style->fg (theme-scope-ref scope))
-      text-foreground-color))
-  (line.styles
-    #:background
-    background-style
-    #:text
-    text-style
-    #:cursor
-    cursor-style
-    #:active-file
-    active-file-style
-    #:pinned
-    pinned-style
-    #:rail-track
-    rail-track-style
-    #:rail-thumb
-    rail-thumb-style
-    #:guides
+  (resolved.resolved-theme
+    pane-background
+    (resolved.row-colors visible-background visible-foreground)
+    (row 'pinned-ancestor-row "ui.virtual.ruler")
+    (row 'cursor "ui.text.focus")
     (and
       guides?
-      (let ([foreground (style->fg guides-scope)])
-        (line.guides-style
-          (or foreground text-foreground-color)
-          (not foreground))))
-    #:error
-    (scope-foreground "error")
-    #:deleted
-    (scope-foreground "diff.minus")
-    #:modified
-    (scope-foreground "diff.delta")
-    #:created
-    (scope-foreground "diff.plus")
-    #:unsaved
-    (scope-foreground "info")
-    #:icon-palette
+      (foreground
+        'guides-foreground
+        "ui.virtual.indent-guide"
+        Color/Gray))
+    (or (style->bg rail-source) Color/Reset)
+    (or (style->fg rail-source) Color/Reset)
+    (foreground 'filesystem-error-foreground "error" Color/LightRed)
+    (foreground 'git-conflict-foreground "error" Color/Magenta)
+    (foreground 'git-deleted-foreground "diff.minus" Color/Red)
+    (foreground 'git-modified-foreground "diff.delta" Color/Yellow)
+    (foreground 'git-created-foreground "diff.plus" Color/Green)
+    (foreground 'unsaved-mark-foreground "info" Color/Cyan)
     (and
       icons?
-      (icon-palette-for background-scope text-scope))))
+      (icon-palette-for visible-background visible-foreground))))

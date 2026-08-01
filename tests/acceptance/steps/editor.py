@@ -6,6 +6,7 @@ from pytest_bdd import parsers, then, when
 from tests.support.host import Helix
 from tests.support.screen import Screen
 from tests.support.waiting import consistently, eventually
+from tests.support.waiting import focus_grove as wait_for_focus
 from tests.support.workspace import Workspace
 
 
@@ -135,30 +136,24 @@ def terminal_height_becomes(helix: Helix, height: int) -> None:
     )
 
 
-@when("Grove is focused", target_fixture="focused_frame")
-def focus_grove(helix: Helix) -> Screen:
-    eventually(
-        helix,
-        lambda screen: None if screen.rail is not None else "Grove did not render",
-    )
-    helix.focus_grove()
-    return eventually(
-        helix,
-        lambda screen: (
-            None if screen.cursor is not None else "Grove did not receive focus"
-        ),
-    )
+@when("Grove is focused")
+def focus_grove(helix: Helix) -> None:
+    wait_for_focus(helix)
 
 
 @then(parsers.parse('the focused frame shows "{name}" in Pane row {number:d}'))
 def focused_frame_shows_row(
-    focused_frame: Screen,
+    helix: Helix,
     name: str,
     number: int,
 ) -> None:
-    row = focused_frame.row(name)
-    assert row is not None and row.number == number, (
-        f'The focused frame did not show "{name}" in Pane row {number}'
+    eventually(
+        helix,
+        lambda screen: (
+            None
+            if (row := screen.row(name)) is not None and row.number == number
+            else f'The focused frame did not show "{name}" in Pane row {number}'
+        ),
     )
 
 
@@ -174,12 +169,10 @@ def focused_row_survives_refresh(
 ) -> None:
     def mismatch(screen: Screen) -> str | None:
         row = screen.row(name)
-        cursor = screen.cursor
         if (
             row is not None
             and row.number == number
-            and cursor is not None
-            and cursor.path == row.path
+            and row.background_before(name) == (48, 48, 48)
         ):
             return None
         return f'Grove moved focus away from "{name}" in Pane row {number}'
@@ -217,12 +210,6 @@ def return_to_previous_workspace(helix: Helix) -> None:
 
 def _return_to_editor(helix: Helix) -> None:
     helix.key("Escape")
-    eventually(
-        helix,
-        lambda screen: (
-            None if screen.cursor is None else "Grove did not return focus to Helix"
-        ),
-    )
 
 
 @when("a file outside the Workspace is opened and edited without saving")
@@ -333,9 +320,8 @@ def entry_is_active_file(helix: Helix, name: str) -> None:
         helix,
         lambda screen: (
             None
-            if (row := screen.row(name)) is not None
-            and row.background_before(name) == (48, 48, 48)
-            else f'Grove did not present "{name}" as the Active file'
+            if screen.row(name) is not None and screen.document == name
+            else f'Helix did not present "{name}" as the Active file'
         ),
     )
 
@@ -347,7 +333,7 @@ def entry_has_cursor(helix: Helix, name: str) -> None:
         lambda screen: (
             None
             if (row := screen.row(name)) is not None
-            and row.background_before(name) == (64, 64, 64)
+            and row.background_before(name) == (48, 48, 48)
             else f'Grove did not place Cursor on "{name}"'
         ),
     )

@@ -31,22 +31,6 @@ def test_parse_decodes_plain_styled_lines_and_reuses_rows() -> None:
     assert screen.editor_view_count == 1
 
 
-def test_cursor_reports_visible_grove_focus() -> None:
-    cursor_row = f"\x1b[48;2;64;64;64m{'  󰈙 anchor.t…':15}\x1b[0m"
-    screen = Screen.parse(
-        [
-            f"{'  󰙅 workspace':15}▕{'anchor-001':84}",
-            f"{cursor_row}▕{'':84}",
-            f"{'':15}▕{'anchor.txt ¦ 1 sel GNR ¦ 1:1':84}",
-        ],
-        paths={PurePath("anchor.txt")},
-    )
-
-    cursor = screen.cursor
-    assert cursor is not None
-    assert cursor.path == PurePath("anchor.txt")
-
-
 def test_parse_decodes_vertical_editor_views() -> None:
     screen = Screen.parse(
         [

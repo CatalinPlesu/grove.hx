@@ -1,11 +1,11 @@
 (require (prefix-in layout. "../domain/layout.scm"))
-(require (prefix-in rows. "../domain/rows.scm"))
 (require (prefix-in line. "line.scm"))
 
-(provide build lines line-runs
-  x
+(provide build lines
   y
   width
+  content-x
+  rail-x
   hit-test
   hit-row?
   hit-row-id
@@ -18,11 +18,9 @@
   hit-page-amount)
 
 (struct view-value (layout lines))
-(struct line-value (runs press-target))
 (struct hit-value (kind row-id layout column row))
 
 (define lines view-value-lines)
-(define line-runs line-value-runs)
 
 (define (x view)
   (layout.x (view-value-layout view)))
@@ -33,10 +31,16 @@
 (define (width view)
   (layout.width (view-value-layout view)))
 
-(define (height view)
-  (layout.height (view-value-layout view)))
+(define (content-x view)
+  (if
+    (equal? (layout.side (view-value-layout view)) 'right)
+    (+ (x view) 1)
+    (x view)))
 
-(define (build-lines current-layout styles)
+(define (rail-x view)
+  (layout.rail-x (view-value-layout view)))
+
+(define (build-lines current-layout current-theme)
   (let loop ([offset 0]
              [remaining (layout.pane-slots current-layout)]
              [result '()])
@@ -50,33 +54,27 @@
           (+ offset 1)
           rest
           (cons
-            (line-value
-              (line.build
-                slot
-                (- (layout.width current-layout) 1)
-                (layout.side current-layout)
-                (layout.rail-part-at current-layout row)
-                styles)
-              (and
-                slot
-                (not (layout.slot-pinned? slot))
-                (rows.row-pressable? (layout.slot-row slot))
-                (rows.row-id (layout.slot-row slot))))
+            (line.build
+              slot
+              (- (layout.width current-layout) 1)
+              (layout.side current-layout)
+              (layout.rail-part-at current-layout row)
+              current-theme)
             result))))))
 
-(define (build current-layout styles)
+(define (build current-layout current-theme)
   (and
     current-layout
     (view-value
       current-layout
-      (build-lines current-layout styles))))
+      (build-lines current-layout current-theme))))
 
 (define (inside? view column row)
   (and
     (>= column (x view))
     (< column (+ (x view) (width view)))
     (>= row (y view))
-    (< row (+ (y view) (height view)))))
+    (< row (+ (y view) (layout.height (view-value-layout view))))))
 
 (define (hit-test view column row)
   (unless
@@ -94,7 +92,7 @@
     [else
       (define current-line
         (list-ref (lines view) (- row (y view))))
-      (define row-id (line-value-press-target current-line))
+      (define row-id (line.line-press-target current-line))
       (hit-value
         (if row-id 'row 'inside)
         row-id

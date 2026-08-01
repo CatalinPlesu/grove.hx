@@ -2,7 +2,7 @@ from pytest_bdd import parsers, then, when
 
 from tests.support.host import Helix
 from tests.support.screen import Screen
-from tests.support.waiting import consistently, eventually
+from tests.support.waiting import consistently, eventually, focus_grove
 from tests.support.workspace import Workspace
 
 
@@ -136,71 +136,36 @@ def workspace_root_has_no_ancestor_trace_or_leaf_mark(helix: Helix) -> None:
     assert "·" not in row.text[: row.label_column()]
 
 
-@then(parsers.parse('"{name}" uses {count:d} Ancestor trace'))
-@then(parsers.parse('"{name}" uses {count:d} Ancestor traces'))
-def entry_uses_ancestor_traces(helix: Helix, name: str, count: int) -> None:
+@then(
+    parsers.re(
+        r'^"(?P<name>.+)" uses (?P<count>\d+) '
+        r"(?P<kind>Ancestor trace|Leaf mark)s?$"
+    )
+)
+def entry_uses_guides(helix: Helix, name: str, count: str, kind: str) -> None:
     row = _screen_with_rows(helix, name).row(name)
     assert row is not None
-    assert row.text[: row.label_column()].count("│") == count
-
-
-@then(parsers.parse('"{name}" has no Ancestor trace'))
-def entry_has_no_ancestor_trace(helix: Helix, name: str) -> None:
-    row = _screen_with_rows(helix, name).row(name)
-    assert row is not None
-    assert "│" not in row.text[: row.label_column()]
-
-
-@then(parsers.parse('"{name}" uses one Leaf mark'))
-def entry_uses_one_leaf_mark(helix: Helix, name: str) -> None:
-    row = _screen_with_rows(helix, name).row(name)
-    assert row is not None
-    assert row.text[: row.label_column()].count("·") == 1
-
-
-@then(parsers.parse('"{name}" has no Leaf mark'))
-def entry_has_no_leaf_mark(helix: Helix, name: str) -> None:
-    row = _screen_with_rows(helix, name).row(name)
-    assert row is not None
-    assert "·" not in row.text[: row.label_column()]
+    glyph = "│" if kind == "Ancestor trace" else "·"
+    assert row.text[: row.label_column()].count(glyph) == int(count)
 
 
 @then(
-    parsers.parse(
-        'the Ancestor traces and Leaf mark on "{name}" '
-        "use the indent-guide theme foreground"
+    parsers.re(
+        r'^the Ancestor traces? and Leaf mark on "(?P<name>.+)" '
+        r"use the (?P<source>theme Guides|terminal gray) foreground$"
     )
 )
-def ancestor_traces_and_leaf_mark_use_indent_guide_foreground(
+def ancestor_traces_and_leaf_mark_use_foreground(
     helix: Helix,
     name: str,
+    source: str,
 ) -> None:
     row = _screen_with_rows(helix, name).row(name)
     assert row is not None
-    assert row.foreground_before("│") == (136, 136, 136)
-    assert row.foreground_before("·") == (136, 136, 136)
-    assert not row.is_dimmed_before("│")
-    assert not row.is_dimmed_before("·")
-
-
-@then(
-    parsers.parse(
-        'the Ancestor trace and Leaf mark on "{name}" '
-        "use the dimmed theme text foreground"
-    )
-)
-def ancestor_trace_and_leaf_mark_use_dimmed_text_foreground(
-    helix: Helix,
-    name: str,
-) -> None:
-    row = _screen_with_rows(helix, name).row(name)
-    assert row is not None
-    text_foreground = row.foreground_before(row.label)
-    assert text_foreground is not None
-    assert row.foreground_before("│") == text_foreground
-    assert row.foreground_before("·") == text_foreground
-    assert row.is_dimmed_before("│")
-    assert row.is_dimmed_before("·")
+    foreground = (136, 136, 136) if source == "theme Guides" else (128, 128, 128)
+    assert row.foreground_before("│") == foreground
+    assert row.foreground_before("·") == foreground
+    assert not any((row.is_dimmed_before("│"), row.is_dimmed_before("·")))
 
 
 @then(parsers.parse('"{file}" aligns with "{directory}" in icon mode'))
@@ -297,7 +262,7 @@ def _screen_with_rows(helix: Helix, *names: str) -> Screen:
 @when(parsers.parse('the "{name}" directory is expanded'))
 def expand_directory(helix: Helix, name: str) -> None:
     _toggle_directory(helix, name, "▾")
-    helix.focus_grove()
+    focus_grove(helix)
 
 
 @when(parsers.parse('the "{name}" directory is collapsed'))

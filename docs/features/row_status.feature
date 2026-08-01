@@ -65,7 +65,9 @@ Feature: Present File tree status layers
     And "outer/inner/active.txt" is Active
     When Helix starts with Grove in that Workspace
     And a file outside the Workspace is opened and edited without saving
-    Then the Workspace root carries no Unsaved mark
+    Then these rows carry no Unsaved mark
+      | row            |
+      | Workspace root |
 
   Scenario: Treat a nested Git repository as a single Workspace entry
     Given a Workspace containing entries
@@ -101,7 +103,7 @@ Feature: Present File tree status layers
     Then the Ancestor stack is "workspace > alpha > beta > gamma" above File tree row "item-02.txt"
     And the Pinned "gamma" row keeps ordinary status layers
 
-  Scenario: Compose ignored dimming with a Pinned row background
+  Scenario: Dim an ignored label on a Pinned row
     Given a Workspace containing entries
       | kind | path                                  | count |
       | file | alpha/beta/gamma/item-{:02d}.txt      | 13    |
@@ -117,7 +119,7 @@ Feature: Present File tree status layers
     And the Wheel scrolls down over Grove
     And the Wheel scrolls down over Grove
     Then the Ancestor stack is "workspace > alpha > beta > gamma" above File tree row "item-02.txt"
-    And the Pinned "alpha" row background composes with ignored dimming
+    And the Pinned "alpha" row keeps its background while its label is dimmed
 
   Rule: With representative Git statuses
 
@@ -151,7 +153,7 @@ Feature: Present File tree status layers
         | ignored.txt              | ignored  |
       And "clean.txt" is Active
 
-    Scenario: Layer Git, failure, Unsaved, Active, and Cursor presentation
+    Scenario: Layer Git, failure, Unsaved, and Cursor presentation
       When Helix starts with Grove in that Workspace
       Then "workspace" uses the conflict Git foreground
       And "conflict-dir" uses the conflict Git foreground
@@ -160,21 +162,20 @@ Feature: Present File tree status layers
       And "modified.txt" uses the modified Git foreground
       And "created-dir" uses the created Git foreground
       And "created.txt" uses the created Git foreground
-      And the failure foreground owns the "broken-link" icon and label
+      And "broken-link" uses the broken-link icon and error foreground
       And ignored status dims the "ignored-dir" label only
       When "modified.txt" is activated
       And the editor inserts "dirty-" without saving
-      Then the Workspace icon, "modified.txt" icon, and Unsaved marks keep their foregrounds
-      And the Active "modified.txt" row background spans its icon, label, and Unsaved mark
+      Then the Workspace icon, file icon, and Unsaved marks keep their foregrounds
       When Grove is focused
       Then the Cursor "modified.txt" row background spans its icon, label, and Unsaved mark
-      And the Cursor icon for "modified.txt" uses the Cursor foreground
+      And "modified.txt" uses the "dark" file icon variant
       And "modified.txt" uses the modified Git foreground
       When "ignored.txt" is activated
       And the editor inserts "ignored-" without saving
-      Then ignored dimming on "ignored.txt" composes with the Active row background
+      Then ignored status dims the "ignored.txt" label only
       When Grove is focused
-      Then ignored dimming on "ignored.txt" composes with the Cursor row background
+      Then the ignored "ignored.txt" label stays dimmed on the Cursor row background
 
     Scenario: Refresh Git status after every save
       Given Grove settings

@@ -174,18 +174,11 @@ class Screen:
         )
 
     @property
-    def cursor(self) -> Row | None:
-        candidates = list(self._rows)
-        if root := self.workspace_root:
-            candidates.append(root)
-        matches = [
-            row
-            for row in candidates
-            if row.background_before(row.label) == (64, 64, 64)
-        ]
-        if len(matches) > 1:
-            raise AssertionError("Grove rendered multiple Cursor rows")
-        return matches[0] if matches else None
+    def grove_row_styles(self) -> tuple[tuple[PurePath, Style], ...]:
+        root = (root,) if (root := self.workspace_root) else ()
+        return tuple(
+            (row.path, row.style_before(row.label)) for row in root + self._rows
+        )
 
     @property
     def side(self) -> str | None:

@@ -94,13 +94,14 @@ request to open its native file picker before Steel components mount.
 
 ## Configuration
 
-`grove-start!` accepts four optional settings:
+`grove-start!` accepts five optional settings:
 
 | Setting | Default | Values |
 | --- | --- | --- |
 | `#:icons` | `#t` | `#t` or `#f` |
 | `#:guides` | `#t` | `#t` or `#f` |
 | `#:side` | `'left` | `'left` or `'right` |
+| `#:theme` | `(grove-theme)` | a `grove-theme` value |
 | `#:width` | `32` | `16` through `64` |
 
 For example:
@@ -123,6 +124,9 @@ its scrollbar. Icons require a terminal font with Nerd Fonts 3.3 glyphs. Set
 Guides make File tree structure readable before each label. Ancestor traces
 follow parent directories through nested rows, while Leaf marks distinguish
 rows without an expansion control. Set `#:guides` to `#f` to hide both.
+
+Grove follows the active Helix theme by default. See [THEMING.md](THEMING.md)
+to override individual Theme roles or provide fixed colors.
 
 ## Controls
 

@@ -11,7 +11,6 @@ from pytest_bdd import given, parsers, when
 from tests.support.host import (
     DEFAULT_STARTUP,
     TEST_THEME,
-    TEST_THEME_WITHOUT_INDENT_GUIDE,
     Helix,
     start,
 )
@@ -76,14 +75,6 @@ def theme_with_inputs(
         + f'"ui.background" = {{ bg = "{background}" }}\n'
         + f'"ui.text" = {{ fg = "{text}" }}\n'
     )
-
-
-@given(
-    "the Host theme has no indent-guide foreground",
-    target_fixture="helix_theme",
-)
-def theme_without_indent_guide_foreground() -> str:
-    return TEST_THEME_WITHOUT_INDENT_GUIDE
 
 
 @when(

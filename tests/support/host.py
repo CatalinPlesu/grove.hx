@@ -35,17 +35,19 @@ TEST_THEME = """\
 inherits = "base16_default_dark"
 "ui.text.focus" = { bg = "#303030" }
 "ui.virtual.indent-guide" = { fg = "#888888" }
-"ui.menu.selected" = { fg = "#00aaff", bg = "#404040" }
 "ui.virtual.ruler" = { bg = "#202020" }
 "error" = { fg = "#ff00ff" }
 "diff.minus" = { fg = "#ff0000" }
 "diff.delta" = { fg = "#ffff00" }
 "diff.plus" = { fg = "#00ff00" }
 "info" = { fg = "#00ffff" }
+"grove.test.cursor" = { bg = "#112233" }
+"grove.test.modified" = { fg = "#456789" }
+"grove.test.empty" = {}
 """
-TEST_THEME_WITHOUT_INDENT_GUIDE = TEST_THEME.replace(
-    '"ui.virtual.indent-guide" = { fg = "#888888" }\n',
-    "",
+ALT_TEST_THEME = TEST_THEME.replace(
+    '"grove.test.cursor" = { bg = "#112233" }',
+    '"grove.test.cursor" = { bg = "#334455" }',
 )
 
 
@@ -230,6 +232,10 @@ def _prepare_homes(
         steel_home / "cogs" / "devicons",
     )
     (helix_config / "themes" / "grove_test.toml").write_text(theme, encoding="utf-8")
+    (helix_config / "themes" / "grove_test_alt.toml").write_text(
+        ALT_TEST_THEME,
+        encoding="utf-8",
+    )
     (helix_config / "config.toml").write_text(
         'theme = "grove_test"\n'
         "[editor]\n"
@@ -246,6 +252,7 @@ def _prepare_homes(
     )
     (helix_config / "init.scm").write_text(
         f'(require "{REPOSITORY / "grove.scm"}")\n'
+        '(require "helix/components.scm")\n'
         '(require "helix/keymaps.scm")\n'
         f"{startup}\n"
         '(keymap (global) (normal (space (e ":grove-focus!"))))\n',
