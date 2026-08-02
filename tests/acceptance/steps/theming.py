@@ -121,6 +121,31 @@ def _cursor_uses_background(
     )
 
 
+@then(
+    parsers.parse(
+        '"{name}" uses background "{expected}" without source foreground or modifiers'
+    )
+)
+def entry_uses_background_only(helix: Helix, name: str, expected: str) -> None:
+    expected_rgb = tuple(bytes.fromhex(expected.removeprefix("#")))
+
+    def mismatch(screen: Screen) -> str | None:
+        row = screen.row(name)
+        plain = screen.row("plain.txt")
+        if row is None or plain is None:
+            return "Grove did not show both rows"
+        style = row.style_before(name)
+        if row.background_before(name) != expected_rgb:
+            return f'"{name}" did not use background {expected}'
+        if row.foreground_before(name) != plain.foreground_before("plain.txt"):
+            return f'"{name}" kept the source foreground'
+        if bool(style.bold) or bool(style.reverse):
+            return f'"{name}" kept source modifiers'
+        return None
+
+    eventually(helix, mismatch)
+
+
 @then(parsers.parse('"{name}" uses the configured Visible row colors'))
 def entry_uses_configured_visible_row_colors(
     helix: Helix,

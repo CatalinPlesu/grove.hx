@@ -35,6 +35,33 @@ Feature: Theme Grove
     And Grove is focused
     Then Cursor uses the new colors
 
+  Scenario Outline: Resolve the Active file background from Helix theme scopes
+    Given a Workspace containing entries
+      | path       |
+      | active.txt |
+      | plain.txt  |
+    And "active.txt" is Active
+    And the Host theme uses Active buffer background "<bufferline>" and Statusline background "#334455"
+    When Helix starts with Grove in that Workspace
+    Then "active.txt" uses background "<expected>" without source foreground or modifiers
+
+    Examples:
+      | bufferline | expected |
+      | #112233    | #112233  |
+      | missing    | #334455  |
+
+  Scenario: Override the Active file background
+    Given a Workspace containing entries
+      | path       |
+      | active.txt |
+      | plain.txt  |
+    And "active.txt" is Active
+    And a Grove theme assigns these sources
+      | role                   | source           |
+      | active-file-background | native row Style |
+    When Helix starts with Grove in that Workspace
+    Then "active.txt" uses background "#040506" without source foreground or modifiers
+
   Scenario Outline: Choose the icon palette from theme inputs
     Given a Workspace containing entries
       | path       |

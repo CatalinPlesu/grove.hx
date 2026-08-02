@@ -77,6 +77,26 @@ def theme_with_inputs(
     )
 
 
+@given(
+    parsers.parse(
+        'the Host theme uses Active buffer background "{bufferline}" '
+        'and Statusline background "{statusline}"'
+    ),
+    target_fixture="helix_theme",
+)
+def theme_with_active_file_backgrounds(
+    bufferline: str,
+    statusline: str,
+) -> str:
+    bufferline_background = f', bg = "{bufferline}"' if bufferline != "missing" else ""
+    return (
+        TEST_THEME
+        + '"ui.bufferline.active" = { fg = "#abcdef", '
+        + f'modifiers = ["bold"]{bufferline_background} }}\n'
+        + f'"ui.statusline.active" = {{ bg = "{statusline}" }}\n'
+    )
+
+
 @when(
     parsers.parse('Helix starts with Grove in Workspace "{workspace_name}"'),
     target_fixture="helix",

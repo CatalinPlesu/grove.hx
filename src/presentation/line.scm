@@ -43,6 +43,8 @@
     [(rows.row-cursor? row) (theme.resolved-theme-cursor current-theme)]
     [(layout.slot-pinned? slot)
       (theme.resolved-theme-pinned-ancestor-row current-theme)]
+    [(rows.row-active-file? row)
+      (theme.resolved-theme-active-file current-theme)]
     [else (theme.resolved-theme-visible-row current-theme)]))
 
 (define (row-leading-runs row current-theme base-style)

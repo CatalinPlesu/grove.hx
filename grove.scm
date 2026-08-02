@@ -12,6 +12,8 @@
          [pinned-ancestor-row #f]
          #:cursor
          [cursor #f]
+         #:active-file-background
+         [active-file-background #f]
          #:guides-foreground
          [guides-foreground #f]
          #:active-file-mark-foreground
@@ -36,6 +38,7 @@
       (cons 'visible-row visible-row)
       (cons 'pinned-ancestor-row pinned-ancestor-row)
       (cons 'cursor cursor)
+      (cons 'active-file-background active-file-background)
       (cons 'guides-foreground guides-foreground)
       (cons 'active-file-mark-foreground active-file-mark-foreground)
       (cons 'rail rail)

@@ -6,6 +6,7 @@
   resolved-theme-visible-row
   resolved-theme-pinned-ancestor-row
   resolved-theme-cursor
+  resolved-theme-active-file
   resolved-theme-guides-foreground
   resolved-theme-active-file-mark-foreground
   resolved-theme-rail-track
@@ -22,6 +23,7 @@
     visible-row
     pinned-ancestor-row
     cursor
+    active-file
     guides-foreground
     active-file-mark-foreground
     rail-track

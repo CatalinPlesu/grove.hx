@@ -26,9 +26,9 @@ it; an open command never predicts it. Regular refresh does not expand
 or scan through collapsed ancestors only to follow it. Focusing Grove takes a
 complete observation, scans the Active file path, then expands and reveals it
 when Pane is available. When Visible, the Active file mark identifies it while
-it uses ordinary row presentation. Normal activation only returns control to
-Helix, preserving the editor cursor and viewport. Split activation still opens
-the requested split.
+its background can follow the active Helix theme. Normal activation only returns
+control to Helix, preserving the editor cursor and viewport. Split activation
+still opens the requested split.
 _Avoid_: Cursor, selected row
 
 **Editor view**:

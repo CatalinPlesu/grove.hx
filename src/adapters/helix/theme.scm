@@ -24,54 +24,61 @@
     'light
     'dark))
 
-(define (resolve-style sources role default-scope)
+(define (resolve-color sources role default-scopes property fallback)
   (define source (cdr (assoc role sources)))
-  (cond
-    [(string? source) (theme-scope-ref source)]
-    [source source]
-    [else (theme-scope-ref default-scope)]))
+  (define candidates
+    (if
+      source
+      (list (if (string? source) (theme-scope-ref source) source))
+      (map theme-scope-ref default-scopes)))
+  (define candidate (findf property candidates))
+  (or (and candidate (property candidate)) fallback))
 
 (define (resolve sources icons? guides?)
-  (define pane-source
-    (resolve-style sources 'pane-background "ui.background"))
+  (define (background role default-scopes fallback)
+    (resolve-color sources role default-scopes style->bg fallback))
+  (define (foreground role default-scopes fallback)
+    (resolve-color sources role default-scopes style->fg fallback))
   (define pane-background
-    (or (style->bg pane-source) Color/Reset))
-  (define visible-source
-    (resolve-style sources 'visible-row "ui.text"))
+    (background 'pane-background '("ui.background") Color/Reset))
   (define visible-foreground
-    (or (style->fg visible-source) Color/Reset))
+    (foreground 'visible-row '("ui.text") Color/Reset))
   (define visible-background
-    (or (style->bg visible-source) pane-background))
-  (define rail-source
-    (resolve-style sources 'rail "ui.menu.scroll"))
-  (define (row role default-scope)
-    (define source (resolve-style sources role default-scope))
+    (background 'visible-row '("ui.text") pane-background))
+  (define (row role default-scopes)
     (resolved.row-colors
-      (or (style->bg source) visible-background)
-      (or (style->fg source) visible-foreground)))
-  (define (foreground role default-scope fallback)
-    (or (style->fg (resolve-style sources role default-scope)) fallback))
+      (background role default-scopes visible-background)
+      (foreground role default-scopes visible-foreground)))
 
   (resolved.resolved-theme
     pane-background
     (resolved.row-colors visible-background visible-foreground)
-    (row 'pinned-ancestor-row "ui.virtual.ruler")
-    (row 'cursor "ui.text.focus")
+    (row 'pinned-ancestor-row '("ui.virtual.ruler"))
+    (row 'cursor '("ui.text.focus"))
+    (resolved.row-colors
+      (background
+        'active-file-background
+        (list "ui.bufferline.active" "ui.statusline.active")
+        visible-background)
+      visible-foreground)
     (and
       guides?
       (foreground
         'guides-foreground
-        "ui.virtual.indent-guide"
+        '("ui.virtual.indent-guide")
         Color/Gray))
-    (foreground 'active-file-mark-foreground "info" #f)
-    (or (style->bg rail-source) Color/Reset)
-    (or (style->fg rail-source) Color/Reset)
-    (foreground 'filesystem-error-foreground "error" Color/LightRed)
-    (foreground 'git-conflict-foreground "error" Color/Magenta)
-    (foreground 'git-deleted-foreground "diff.minus" Color/Red)
-    (foreground 'git-modified-foreground "diff.delta" Color/Yellow)
-    (foreground 'git-created-foreground "diff.plus" Color/Green)
-    (foreground 'unsaved-mark-foreground "info" Color/Cyan)
+    (foreground 'active-file-mark-foreground '("info") #f)
+    (background 'rail '("ui.menu.scroll") Color/Reset)
+    (foreground 'rail '("ui.menu.scroll") Color/Reset)
+    (foreground
+      'filesystem-error-foreground
+      '("error")
+      Color/LightRed)
+    (foreground 'git-conflict-foreground '("error") Color/Magenta)
+    (foreground 'git-deleted-foreground '("diff.minus") Color/Red)
+    (foreground 'git-modified-foreground '("diff.delta") Color/Yellow)
+    (foreground 'git-created-foreground '("diff.plus") Color/Green)
+    (foreground 'unsaved-mark-foreground '("info") Color/Cyan)
     (and
       icons?
       (icon-palette-for visible-background visible-foreground))))

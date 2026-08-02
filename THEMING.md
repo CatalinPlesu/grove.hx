@@ -59,6 +59,7 @@ distinction.
 | `visible-row` | ordinary File tree rows | foreground and background | `ui.text` | terminal foreground; Pane background |
 | `pinned-ancestor-row` | Pinned ancestor rows | foreground and background | `ui.virtual.ruler` | matching Visible color |
 | `cursor` | Cursor row | foreground and background | `ui.text.focus` | matching Visible color |
+| `active-file-background` | Active file row | background | `ui.bufferline.active`, then `ui.statusline.active` | Visible row background |
 | `guides-foreground` | Ancestor traces and Leaf marks | foreground | `ui.virtual.indent-guide` | terminal gray |
 | `active-file-mark-foreground` | Active file marks | foreground | `info` | matching row foreground |
 | `rail` | Rail thumb and track | foreground for thumb, background for track | `ui.menu.scroll` | matching terminal default |
@@ -73,13 +74,20 @@ Helix theme-key lookup can fall back to a broader key. For example,
 `ui.menu.scroll` can receive colors from `ui.menu`. Grove uses the colors that
 Helix returns.
 
+When `active-file-background` is omitted, Grove takes the first available
+background from its two default keys. This means `ui.bufferline.active` can use
+`ui.bufferline`, and `ui.statusline.active` can use `ui.statusline`. If none of
+them supplies a background, the Active file keeps the Visible row background.
+A configured override replaces this default chain.
+
 ## Overlap
 
 Row roles apply in this order:
 
 1. Cursor
 2. Pinned ancestor row
-3. Visible row
+3. Active file
+4. Visible row
 
 Filesystem errors override Git status for the affected label. Git status
 overrides the row foreground. Guides and Unsaved marks use their own
