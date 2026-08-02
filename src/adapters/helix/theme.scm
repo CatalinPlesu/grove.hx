@@ -63,6 +63,7 @@
         'guides-foreground
         "ui.virtual.indent-guide"
         Color/Gray))
+    (foreground 'active-file-mark-foreground "info" #f)
     (or (style->bg rail-source) Color/Reset)
     (or (style->fg rail-source) Color/Reset)
     (foreground 'filesystem-error-foreground "error" Color/LightRed)

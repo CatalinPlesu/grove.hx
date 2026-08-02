@@ -28,7 +28,8 @@ Feature: Present File tree rows
     When Helix starts with Grove in that Workspace
     Then the Workspace root has neither an Ancestor trace nor a Leaf mark
     And "anchor.txt" uses 0 Ancestor traces
-    And "anchor.txt" uses 1 Leaf mark
+    And "anchor.txt" uses 0 Leaf marks
+    And "anchor.txt" uses the Active file mark
     And "anchor.txt" uses the file icon
     When the "outer" directory is expanded
     And the "outer/inner" directory is expanded
@@ -52,9 +53,32 @@ Feature: Present File tree rows
       | guides  | disabled |
     When Helix starts with Grove in that Workspace
     Then "anchor.txt" uses 0 Leaf marks
+    And "anchor.txt" uses the Active file mark
     When the "outer" directory is expanded
     Then "inside.txt" uses 0 Ancestor traces
     And "inside.txt" uses 0 Leaf marks
+
+  Scenario: Present Cursor and Active file marks without shifting rows
+    Given a Workspace containing entries
+      | path       |
+      | active.txt |
+      | plain.txt  |
+    And "active.txt" is Active
+    And Git reports statuses
+      | path       | status   |
+      | active.txt | modified |
+    When Helix starts with Grove in that Workspace
+    Then "active.txt" uses the Active file mark
+    And "active.txt" uses the modified Git foreground
+    And "active.txt" has no Cursor mark
+    And "plain.txt" has no Cursor mark
+    When Grove is focused
+    Then "active.txt" uses the Cursor mark in the first cell
+    And "active.txt" keeps the Active file mark
+    And the Cursor mark uses the Cursor row colors
+    And the Active file mark uses the theme info foreground and Cursor row background
+    And "plain.txt" has no Cursor mark
+    And "active.txt" aligns with "plain.txt" in icon mode
 
   Scenario: Present links by target state
     Given a Workspace containing entries
@@ -125,4 +149,4 @@ Feature: Present File tree rows
     When Helix starts with Grove in that Workspace
     Then "folder" can expand
     And Workspace, "folder", and "anchor.txt" labels occupy reclaimed icon columns
-    And "anchor.txt" uses 1 Leaf mark
+    And "anchor.txt" uses the Active file mark

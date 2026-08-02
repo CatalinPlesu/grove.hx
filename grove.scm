@@ -14,6 +14,8 @@
          [cursor #f]
          #:guides-foreground
          [guides-foreground #f]
+         #:active-file-mark-foreground
+         [active-file-mark-foreground #f]
          #:rail
          [rail #f]
          #:filesystem-error-foreground
@@ -35,6 +37,7 @@
       (cons 'pinned-ancestor-row pinned-ancestor-row)
       (cons 'cursor cursor)
       (cons 'guides-foreground guides-foreground)
+      (cons 'active-file-mark-foreground active-file-mark-foreground)
       (cons 'rail rail)
       (cons 'filesystem-error-foreground filesystem-error-foreground)
       (cons 'git-conflict-foreground git-conflict-foreground)

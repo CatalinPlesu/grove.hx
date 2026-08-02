@@ -149,6 +149,48 @@ def entry_uses_guides(helix: Helix, name: str, count: str, kind: str) -> None:
     assert row.text[: row.label_column()].count(glyph) == int(count)
 
 
+@then(parsers.parse('"{name}" uses the Active file mark'))
+@then(parsers.parse('"{name}" keeps the Active file mark'))
+def entry_uses_active_file_mark(helix: Helix, name: str) -> None:
+    row = _screen_with_rows(helix, name).row(name)
+    assert row is not None
+    leading = row.text[: row.label_column()]
+    assert leading.count("*") == 1
+    assert "·" not in leading
+
+
+@then(parsers.parse('"{name}" uses the Cursor mark in the first cell'))
+def entry_uses_cursor_mark(helix: Helix, name: str) -> None:
+    screen = _screen_with_rows(helix, name)
+    row = screen.row(name)
+    assert row is not None
+    assert screen.grove_cursor == row
+
+
+@then(parsers.parse('"{name}" has no Cursor mark'))
+def entry_has_no_cursor_mark(helix: Helix, name: str) -> None:
+    screen = _screen_with_rows(helix, name)
+    row = screen.row(name)
+    assert row is not None
+    assert screen.grove_cursor != row
+
+
+@then("the Cursor mark uses the Cursor row colors")
+def cursor_mark_uses_cursor_colors(helix: Helix) -> None:
+    row = _screen_with_rows(helix, "active.txt").row("active.txt")
+    assert row is not None
+    assert row.foreground_before(">") == (216, 216, 216)
+    assert row.background_before(">") == (48, 48, 48)
+
+
+@then("the Active file mark uses the theme info foreground and Cursor row background")
+def active_file_mark_uses_info_on_cursor(helix: Helix) -> None:
+    row = _screen_with_rows(helix, "active.txt").row("active.txt")
+    assert row is not None
+    assert row.foreground_before("*") == (0, 255, 255)
+    assert row.background_before("*") == (48, 48, 48)
+
+
 @then(
     parsers.re(
         r'^the Ancestor traces? and Leaf mark on "(?P<name>.+)" '

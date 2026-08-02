@@ -118,7 +118,7 @@ def rows_carry_unsaved_mark(
     datatable: list[list[str]],
     amount: str,
 ) -> None:
-    expected = "●" if amount == "one" else None
+    expected = "+" if amount == "one" else None
     names = [row[0] for row in datatable[1:]]
 
     def mismatch(screen: Screen) -> str | None:
@@ -148,7 +148,7 @@ def rows_carry_unsaved_mark(
 def long_filename_clips(helix: Helix, name: str, mark: str) -> None:
     suffix = {
         "without an Unsaved mark": "…",
-        "with its Unsaved mark visible": "…●",
+        "with its Unsaved mark visible": "…+",
     }[mark]
     eventually(
         helix,
@@ -192,9 +192,9 @@ def icons_and_unsaved_marks_keep_foregrounds(helix: Helix) -> None:
             return "Git status recolored the Workspace icon"
         if row.foreground_before("󰈙") != (137, 224, 81):
             return 'File icon for "modified.txt" lost its palette foreground'
-        if root.foreground_before("●") != (0, 255, 255):
+        if root.foreground_before("+") != (0, 255, 255):
             return "Git status recolored the Workspace Unsaved mark"
-        if row.foreground_before("●") != (0, 255, 255):
+        if row.foreground_before("+") != (0, 255, 255):
             return 'Git status recolored the "modified.txt" Unsaved mark'
         return None
 
@@ -211,7 +211,7 @@ def selected_background_spans_row(
     helix: Helix,
     name: str,
 ) -> None:
-    markers = ("󰈙", name, "●")
+    markers = ("󰈙", name, "+")
     eventually(
         helix,
         lambda screen: (
@@ -239,15 +239,15 @@ def ignored_dimming_composes_with_selected_background(
             return f'Grove did not show ignored row "{name}"'
         if "󰈙" not in row.text:
             return f'Ignored row "{name}" did not show its file icon'
-        if "●" not in row.text:
+        if "+" not in row.text:
             return f'Ignored row "{name}" did not show its Unsaved mark'
         if not row.is_dimmed_before(name):
             return "Ignored item label was not dimmed"
-        if row.is_dimmed_before("󰈙") or row.is_dimmed_before("●"):
+        if row.is_dimmed_before("󰈙") or row.is_dimmed_before("+"):
             return "Ignored dimming leaked to the icon or Unsaved mark"
         if not _has_background(
             row,
-            ("󰈙", name, "●"),
+            ("󰈙", name, "+"),
             (48, 48, 48),
         ):
             return "Selected background did not span the ignored row"
@@ -265,10 +265,10 @@ def pinned_row_keeps_ordinary_status_layers(helix: Helix, name: str) -> None:
             if (row := screen.row(name)) is not None
             and "▾" in row.text
             and "" in row.text
-            and "●" in row.text
+            and "+" in row.text
             and row.foreground_before(name) == (255, 255, 0)
-            and row.foreground_before("●") == (0, 255, 255)
-            and _has_background(row, ("", name, "●"), (48, 48, 48))
+            and row.foreground_before("+") == (0, 255, 255)
+            and _has_background(row, ("", name, "+"), (48, 48, 48))
             else f'Pinned row "{name}" lost ordinary status layers'
         ),
     )

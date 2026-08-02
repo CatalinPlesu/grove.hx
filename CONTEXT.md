@@ -25,9 +25,10 @@ The Workspace file in Helix's active editor split. Only Host observation changes
 it; an open command never predicts it. Regular refresh does not expand
 or scan through collapsed ancestors only to follow it. Focusing Grove takes a
 complete observation, scans the Active file path, then expands and reveals it
-when Pane is available. When Visible, it uses ordinary row presentation. Normal
-activation only returns control to Helix, preserving the editor cursor and
-viewport. Split activation still opens the requested split.
+when Pane is available. When Visible, the Active file mark identifies it while
+it uses ordinary row presentation. Normal activation only returns control to
+Helix, preserving the editor cursor and viewport. Split activation still opens
+the requested split.
 _Avoid_: Cursor, selected row
 
 **Editor view**:
@@ -38,12 +39,13 @@ _Avoid_: Pane, Active file, Grove view
 **Cursor**:
 The Grove tree row targeted by keyboard navigation and row actions. It exists
 only while Grove is focused, begins on the Active file when possible, and
-otherwise begins on the Workspace root. It disappears after file activation,
-Escape, an outside click, or the first key Grove does not bind. An unbound key
-is passed to Helix after Cursor disappears. A present Unsaved mark preserves
-Cursor emphasis. A refreshed File tree keeps the Cursor on the same row when it
-survives and resets it to the Workspace root when it does not. Pane
-unavailability removes Cursor; restoring terminal space does not restore focus.
+otherwise begins on the Workspace root. The Cursor mark identifies it. Cursor
+disappears after file activation, Escape, an outside click, or the first key
+Grove does not bind. An unbound key is passed to Helix after Cursor disappears.
+A present Unsaved mark preserves Cursor emphasis. A refreshed File tree keeps
+the Cursor on the same row when it survives and resets it to the Workspace root
+when it does not. Pane unavailability removes Cursor; restoring terminal space
+does not restore focus.
 _Avoid_: Active file, current file
 
 **Workspace session**:
@@ -126,14 +128,25 @@ the current Workspace give neither status.
 _Avoid_: Dirty flag, Buffer status
 
 **Unsaved mark**:
-The single trailing `●` presenting either Unsaved status. It appears on
+The single trailing `+` presenting either Unsaved status. It appears on
 collapsed directories and the Workspace root, and never becomes a count.
 _Avoid_: Buffer overlay, Buffer mark, dirty count
+
+**Cursor mark**:
+The single leading `>` presenting Cursor on a Visible row. Every row reserves
+its position so the mark never shifts File tree content.
+_Avoid_: Cursor prefix, selection arrow
+
+**Active file mark**:
+The single `*` presenting the Active file when it is Visible. It occupies the
+Leaf mark position and remains visible when Guides are disabled.
+_Avoid_: Current buffer flag, Active marker
 
 **Guides**:
 The visual cues before File tree labels that expose ancestry and expansion
 capability. Ancestor traces follow non-root directories through nested rows;
-Leaf marks identify non-root rows that cannot expand.
+Leaf marks identify non-root rows that cannot expand. Cursor and Active file
+marks are independent of Guides.
 _Avoid_: Decoration, Hierarchy decoration
 
 **Ancestor trace**:
@@ -143,7 +156,8 @@ _Avoid_: Hierarchy guide, Indent guide, Folder level line, tree branch
 
 **Leaf mark**:
 The single leading `·` identifying a non-root Visible row without an expansion
-control. It occupies that control's position without replacing the entry icon.
+control. It occupies that control's position without replacing the entry icon;
+the Active file mark replaces it when both apply.
 _Avoid_: File dot, bullet
 
 **Visible row**:

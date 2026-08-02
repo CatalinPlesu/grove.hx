@@ -57,14 +57,27 @@ Feature: Theme Grove
       | plain.txt  |
     And "active.txt" is Active
     And a Grove theme assigns these sources
-      | role            | source                        |
-      | pane-background | fixed Pane Style              |
-      | visible-row     | fixed Visible row Style       |
-      | cursor          | fixed Cursor background Style |
+      | role                        | source                        |
+      | pane-background             | fixed Pane Style              |
+      | visible-row                 | fixed Visible row Style       |
+      | cursor                      | fixed Cursor background Style |
+      | active-file-mark-foreground | empty scope                   |
     When Helix starts with Grove in that Workspace
     And Grove is focused
     Then "plain.txt" uses the configured Visible row colors
     And Cursor uses the configured background and Visible row foreground
+    And the Active file mark uses the configured Visible row foreground
+
+  Scenario: Override the Active file mark foreground
+    Given a Workspace containing entries
+      | path       |
+      | active.txt |
+    And "active.txt" is Active
+    And a Grove theme assigns these sources
+      | role                        | source                        |
+      | active-file-mark-foreground | native row Style              |
+    When Helix starts with Grove in that Workspace
+    Then the Active file mark uses the configured foreground without source background or modifiers
 
   Scenario: Apply the Guides fallback with an empty source
     Given a Workspace containing entries

@@ -132,6 +132,7 @@
       (model-value-tree model)
       (model-value-git-status model)
       (model-value-unsaved-paths model)
+      (model-value-active-path model)
       (model-value-expansion model)
       (model-value-cursor model))
     '()))

@@ -60,6 +60,7 @@ distinction.
 | `pinned-ancestor-row` | Pinned ancestor rows | foreground and background | `ui.virtual.ruler` | matching Visible color |
 | `cursor` | Cursor row | foreground and background | `ui.text.focus` | matching Visible color |
 | `guides-foreground` | Ancestor traces and Leaf marks | foreground | `ui.virtual.indent-guide` | terminal gray |
+| `active-file-mark-foreground` | Active file marks | foreground | `info` | matching row foreground |
 | `rail` | Rail thumb and track | foreground for thumb, background for track | `ui.menu.scroll` | matching terminal default |
 | `filesystem-error-foreground` | Unreadable directory and Broken link icons and labels | foreground | `error` | terminal bright red |
 | `git-conflict-foreground` | labels with a conflicting Git status | foreground | `error` | terminal magenta |
@@ -83,6 +84,9 @@ Row roles apply in this order:
 Filesystem errors override Git status for the affected label. Git status
 overrides the row foreground. Guides and Unsaved marks use their own
 foregrounds. Ignored Git status dims only the exact label.
+
+Cursor marks use their row colors. Active file marks use their Theme role
+foreground and the row background. Git status does not recolor either mark.
 
 File icons keep their selected palette colors on Visible, Pinned, and Cursor
 rows. Git status does not recolor them. A filesystem error can replace the

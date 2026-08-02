@@ -26,17 +26,16 @@
 
 (define (ancestor-trace-indent depth)
   (cond
-    [(= depth 0) ""]
-    [(= depth 1) " "]
+    [(<= depth 1) ""]
     [else
-      (string-append " │" (ancestor-trace-indent (- depth 1)))]))
+      (string-append "│ " (ancestor-trace-indent (- depth 1)))]))
 
-(define (row-indent row guides)
+(define (ancestry-indent row guides)
   (define depth (rows.row-depth row))
   (if
     guides
     (ancestor-trace-indent depth)
-    (make-string (max 0 (- (* 2 depth) 1)) #\space)))
+    (make-string (* 2 (max 0 (- depth 1))) #\space)))
 
 (define (row-colors-for slot current-theme)
   (define row (layout.slot-row slot))
@@ -45,6 +44,32 @@
     [(layout.slot-pinned? slot)
       (theme.resolved-theme-pinned-ancestor-row current-theme)]
     [else (theme.resolved-theme-visible-row current-theme)]))
+
+(define (row-leading-runs row current-theme base-style)
+  (define guides
+    (theme.resolved-theme-guides-foreground current-theme))
+  (define guides-style
+    (if guides (style-fg base-style guides) base-style))
+  (define active-file-foreground
+    (theme.resolved-theme-active-file-mark-foreground current-theme))
+  (define active-file-style
+    (if
+      active-file-foreground
+      (style-fg base-style active-file-foreground)
+      base-style))
+  (append
+    (list
+      (run (if (rows.row-cursor? row) ">" " ") base-style)
+      (run (ancestry-indent row guides) guides-style))
+    (cond
+      [(= (rows.row-depth row) 0) '()]
+      [(rows.row-expandable? row)
+        (list
+          (run
+            (if (rows.row-expanded? row) "▾" "▸")
+            base-style))]
+      [(rows.row-active-file? row) (list (run "*" active-file-style))]
+      [else (list (run (if guides "·" " ") guides-style))])))
 
 (define (fit-runs source-runs width base-style)
   (let loop ([remaining source-runs] [left width] [result '()])
@@ -75,7 +100,7 @@
                   (run-style current))
                 result))])])))
 
-(define (icon-runs row error-icon current-theme base-style)
+(define (icon-area-runs row error-icon current-theme base-style)
   (define palette (theme.resolved-theme-icon-palette current-theme))
   (define icon
     (and
@@ -114,16 +139,19 @@
         [else #f])))
   (if
     icon-run
-    (list (run " " base-style) icon-run)
-    '()))
+    (if
+      (= (rows.row-depth row) 0)
+      (list icon-run (run " " base-style))
+      (list (run " " base-style) icon-run (run " " base-style)))
+    (if
+      (= (rows.row-depth row) 0)
+      '()
+      (list (run " " base-style)))))
 
 (define (row-runs slot width current-theme base-style)
   (define row (layout.slot-row slot))
   (define body-width (max 0 (- width 1)))
   (define error-icon (error-icon-for-kind (rows.row-kind row)))
-  (define guides (theme.resolved-theme-guides-foreground current-theme))
-  (define guides-style
-    (if guides (style-fg base-style guides) base-style))
   (define label-foreground
     (or
       (and
@@ -144,22 +172,9 @@
   (define body
     (fit-runs
       (append
+        (row-leading-runs row current-theme base-style)
+        (icon-area-runs row error-icon current-theme base-style)
         (list
-          (run
-            (row-indent row guides)
-            guides-style))
-        (cond
-          [(= (rows.row-depth row) 0) '()]
-          [(rows.row-expandable? row)
-            (list
-              (run
-                (if (rows.row-expanded? row) "▾" "▸")
-                base-style))]
-          [else
-            (list (run (if guides "·" " ") guides-style))])
-        (icon-runs row error-icon current-theme base-style)
-        (list
-          (run " " base-style)
           (run
             (replace-control-characters (rows.row-label row))
             label-final)))
@@ -172,7 +187,7 @@
       body
       (list
         (run
-          (if unsaved-status "●" " ")
+          (if unsaved-status "+" " ")
           (if
             unsaved-status
             (style-fg

@@ -57,6 +57,7 @@
     flat-tree
     (git.build '())
     '()
+    #f
     (expansion.empty)
     #f))
 
@@ -131,6 +132,7 @@
     nested-tree
     (git.build '())
     '()
+    #f
     (expansion.expand
       (expansion.expand (expansion.empty) "outer")
       "outer/inner")

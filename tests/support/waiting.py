@@ -40,15 +40,15 @@ def eventually(host: Helix, check: Check) -> Screen:
 
 
 def focus_grove(host: Helix) -> None:
-    before = eventually(
+    eventually(
         host,
         lambda screen: None if screen.rail is not None else "Grove did not render",
-    ).grove_row_styles
+    )
     host.focus_grove()
     eventually(
         host,
         lambda screen: (
-            None if screen.grove_row_styles != before else "Grove did not render focus"
+            None if screen.grove_cursor is not None else "Grove did not render focus"
         ),
     )
 

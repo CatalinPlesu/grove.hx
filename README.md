@@ -125,6 +125,9 @@ Guides make File tree structure readable before each label. Ancestor traces
 follow parent directories through nested rows, while Leaf marks distinguish
 rows without an expansion control. Set `#:guides` to `#f` to hide both.
 
+A leading `>` identifies Cursor. An `*` in the Leaf-mark position identifies
+the Active file. These marks remain visible when Guides are disabled.
+
 Grove follows the active Helix theme by default. See [THEMING.md](THEMING.md)
 to override individual Theme roles or provide fixed colors.
 

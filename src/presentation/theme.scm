@@ -7,6 +7,7 @@
   resolved-theme-pinned-ancestor-row
   resolved-theme-cursor
   resolved-theme-guides-foreground
+  resolved-theme-active-file-mark-foreground
   resolved-theme-rail-track
   resolved-theme-rail-thumb
   resolved-theme-filesystem-error-foreground
@@ -22,6 +23,7 @@
     pinned-ancestor-row
     cursor
     guides-foreground
+    active-file-mark-foreground
     rail-track
     rail-thumb
     filesystem-error-foreground

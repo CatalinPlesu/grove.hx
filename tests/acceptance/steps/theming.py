@@ -85,7 +85,7 @@ def cursor_uses_configured_colors_only(helix: Helix) -> None:
             return 'Grove did not show "active.txt"'
         if active.foreground_before("active.txt") != (1, 2, 3):
             return "Cursor did not use the configured foreground"
-        for marker in ("·", "active.txt"):
+        for marker in ("*", "active.txt"):
             actual = active.style_before(marker)
             if active.background_before(marker) != (4, 5, 6):
                 return "Cursor did not use the configured background"
@@ -156,6 +156,40 @@ def cursor_inherits_visible_row_foreground(helix: Helix) -> None:
     )
 
 
+@then("the Active file mark uses the configured Visible row foreground")
+def active_file_mark_inherits_row_foreground(helix: Helix) -> None:
+    eventually(
+        helix,
+        lambda screen: (
+            None
+            if (row := screen.row("active.txt")) is not None
+            and row.foreground_before("*") == (17, 34, 51)
+            else "Active file mark did not inherit the row foreground"
+        ),
+    )
+
+
+@then(
+    "the Active file mark uses the configured foreground without source "
+    "background or modifiers"
+)
+def active_file_mark_uses_configured_foreground_only(helix: Helix) -> None:
+    def mismatch(screen: Screen) -> str | None:
+        row = screen.row("active.txt")
+        if row is None:
+            return 'Grove did not show "active.txt"'
+        mark = row.style_before("*")
+        if row.foreground_before("*") != (1, 2, 3):
+            return "Active file mark did not use the configured foreground"
+        if row.background_before("*") != row.background_before("active.txt"):
+            return "Active file mark replaced the row background"
+        if bool(mark.bold) or bool(mark.reverse):
+            return "Active file mark kept source modifiers"
+        return None
+
+    eventually(helix, mismatch)
+
+
 def _color_number(row: Row, marker: str) -> int | None:
     color = row.style_before(marker).color
     return color.number if color is not None else None
@@ -184,9 +218,9 @@ def grove_uses_status_fallback_colors(helix: Helix) -> None:
             return '"broken-link" did not apply its fallback to the icon'
         active = screen.row("active.txt")
         root = screen.workspace_root
-        if active is None or _color_number(active, "●") != 6:
+        if active is None or _color_number(active, "+") != 6:
             return '"active.txt" did not use terminal cyan for its Unsaved mark'
-        if root is None or _color_number(root, "●") != 6:
+        if root is None or _color_number(root, "+") != 6:
             return "Workspace did not use terminal cyan for its Unsaved mark"
         return None
 

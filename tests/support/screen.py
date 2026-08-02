@@ -105,7 +105,7 @@ class Row:
 
     @property
     def mark(self) -> str | None:
-        return "●" if self.text.endswith((" ●", "…●")) else None
+        return "+" if self.text.endswith((" +", "…+")) else None
 
     @property
     def is_expandable(self) -> bool:
@@ -174,11 +174,12 @@ class Screen:
         )
 
     @property
-    def grove_row_styles(self) -> tuple[tuple[PurePath, Style], ...]:
+    def grove_cursor(self) -> Row | None:
         root = (root,) if (root := self.workspace_root) else ()
-        return tuple(
-            (row.path, row.style_before(row.label)) for row in root + self._rows
-        )
+        matches = tuple(row for row in root + self._rows if row.text.startswith(">"))
+        if len(matches) > 1:
+            raise AssertionError("Grove rendered multiple Cursor marks")
+        return matches[0] if matches else None
 
     @property
     def side(self) -> str | None:
@@ -387,8 +388,8 @@ def _label_start(row: str, label: str) -> int | None:
     literal = row.rstrip()
     texts = [
         literal,
-        literal.removesuffix(" ●").rstrip(),
-        literal.removesuffix("●").rstrip(),
+        literal.removesuffix(" +").rstrip(),
+        literal.removesuffix("+").rstrip(),
     ]
     exact = next(
         (len(text) - len(label) for text in texts if _has_label(text, label)),
@@ -415,12 +416,16 @@ def _has_label(text: str, label: str) -> bool:
     if not text.endswith(label):
         return False
     start = len(text) - len(label)
-    if start and not text[start - 1].isspace():
+    if (
+        start
+        and not text[start - 1].isspace()
+        and not (start == 1 and text.startswith(">"))
+    ):
         return False
     prefix = text[:start]
     return all(
         character.isspace()
-        or character in "▸▾│·"
+        or character in ">*▸▾│·"
         or unicodedata.category(character) in {"Co", "So"}
         for character in prefix
     )

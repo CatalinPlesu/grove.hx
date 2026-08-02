@@ -169,11 +169,7 @@ def focused_row_survives_refresh(
 ) -> None:
     def mismatch(screen: Screen) -> str | None:
         row = screen.row(name)
-        if (
-            row is not None
-            and row.number == number
-            and row.background_before(name) == (48, 48, 48)
-        ):
+        if row is not None and row.number == number and screen.grove_cursor == row:
             return None
         return f'Grove moved focus away from "{name}" in Pane row {number}'
 
@@ -332,8 +328,7 @@ def entry_has_cursor(helix: Helix, name: str) -> None:
         helix,
         lambda screen: (
             None
-            if (row := screen.row(name)) is not None
-            and row.background_before(name) == (48, 48, 48)
+            if (row := screen.row(name)) is not None and screen.grove_cursor == row
             else f'Grove did not place Cursor on "{name}"'
         ),
     )

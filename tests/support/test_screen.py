@@ -13,7 +13,7 @@ def test_parse_decodes_plain_styled_lines_and_reuses_rows() -> None:
     screen = Screen.parse(
         [
             f"{'  󰙅 workspace':24}▕{'target-001':75}",
-            f"{'  󰈙 target.txt':24}▕{'':75}",
+            f"{'>* 󰈙 target.txt':24}▕{'':75}",
             f"{'':24}▕{'folder/target.txt ¦ 1 sel GIN ¦ 1:1':75}",
         ],
         paths={PurePath("target.txt")},
@@ -24,11 +24,34 @@ def test_parse_decodes_plain_styled_lines_and_reuses_rows() -> None:
 
     assert screen.row("workspace") == screen.workspace_root
     assert first_target_row is not None
+    assert screen.grove_cursor == first_target_row
     assert screen.row("target.txt") is first_target_row
     assert screen.row("txt") is None
     assert screen.document == "folder/target.txt"
     assert screen.editor_mode == "Insert"
     assert screen.editor_view_count == 1
+
+
+def test_parse_rejects_multiple_grove_cursors() -> None:
+    screen = Screen.parse(
+        [
+            f"{'>· one.txt':24}▕{'':75}",
+            f"{'>· two.txt':24}▕{'':75}",
+        ],
+        paths={PurePath("one.txt"), PurePath("two.txt")},
+    )
+
+    with pytest.raises(AssertionError, match="multiple Cursor marks"):
+        screen.grove_cursor
+
+
+def test_parse_decodes_cursor_on_workspace_root_without_icon() -> None:
+    screen = Screen.parse(
+        [f"{'>workspace':24}▕{'':75}"],
+        workspace_name="workspace",
+    )
+
+    assert screen.grove_cursor == screen.workspace_root
 
 
 def test_parse_decodes_vertical_editor_views() -> None:
@@ -111,7 +134,7 @@ def test_rows_use_workspace_paths_and_preserve_mark_like_filenames() -> None:
         f"{'      󰈙 same.txt':24}▕{'':75}",
         f"{'  ▾  beta':24}▕{'':75}",
         f"{'      󰈙 same.txt':24}▕{'':75}",
-        f"{'  󰈙 literal ● ●':24}▕{'literal ● ¦ GNR ¦ 1:1':75}",
+        f"{'  󰈙 literal + +':24}▕{'literal + ¦ GNR ¦ 1:1':75}",
         f"{'  󰈙 odd?name.txt':24}▕{'':75}",
     ]
     paths = {
@@ -119,7 +142,7 @@ def test_rows_use_workspace_paths_and_preserve_mark_like_filenames() -> None:
         PurePath("alpha/same.txt"),
         PurePath("beta"),
         PurePath("beta/same.txt"),
-        PurePath("literal ●"),
+        PurePath("literal +"),
         PurePath("odd\nname.txt"),
     }
 
@@ -131,7 +154,7 @@ def test_rows_use_workspace_paths_and_preserve_mark_like_filenames() -> None:
 
     alpha = screen.row("alpha/same.txt")
     beta = screen.row("beta/same.txt")
-    marked = screen.row("literal ●")
+    marked = screen.row("literal +")
     controlled = screen.row("odd\\nname.txt")
     assert alpha is not None and alpha.number == 3
     assert beta is not None and beta.number == 5
@@ -143,8 +166,8 @@ def test_rows_use_workspace_paths_and_preserve_mark_like_filenames() -> None:
 
 def test_rejects_an_ambiguous_unsaved_mark_filename() -> None:
     screen = Screen.parse(
-        [f"{'  󰈙 foo ●':24}▕{'foo ¦ GNR ¦ 1:1':75}"],
-        paths={PurePath("foo"), PurePath("foo ●")},
+        [f"{'  󰈙 foo +':24}▕{'foo ¦ GNR ¦ 1:1':75}"],
+        paths={PurePath("foo"), PurePath("foo +")},
     )
 
     with pytest.raises(AssertionError, match="ambiguous identity"):
