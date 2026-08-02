@@ -120,6 +120,18 @@ Feature: Theme Grove
     And the "outer" directory is expanded
     Then the Ancestor trace and Leaf mark on "inside.txt" use the terminal gray foreground
 
+  Scenario: Use visible whitespace color for Guides
+    Given a Workspace containing entries
+      | kind      | path             |
+      | file      | anchor.txt       |
+      | directory | outer            |
+      | file      | outer/inside.txt |
+    And "anchor.txt" is Active
+    And the Host theme defines ui.virtual.whitespace but not ui.virtual.indent-guide
+    When Helix starts with Grove in that Workspace
+    And the "outer" directory is expanded
+    Then the Ancestor trace and Leaf mark on "inside.txt" use the theme Guides foreground
+
   Scenario: Apply status fallback colors with empty sources
     Given a Workspace containing entries
       | kind        | path                 | target  |

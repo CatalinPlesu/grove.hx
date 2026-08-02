@@ -60,7 +60,7 @@ distinction.
 | `pinned-ancestor-row` | Pinned ancestor rows | foreground and background | `ui.virtual.ruler` | matching Visible color |
 | `cursor` | Cursor row | foreground and background | `ui.text.focus` | matching Visible color |
 | `active-file-background` | Active file row | background | `ui.bufferline.active`, then `ui.statusline.active` | Visible row background |
-| `guides-foreground` | Ancestor traces and Leaf marks | foreground | `ui.virtual.indent-guide` | terminal gray |
+| `guides-foreground` | Ancestor traces and Leaf marks | foreground | `ui.virtual.indent-guide`, then `ui.virtual.whitespace` | terminal gray |
 | `active-file-mark-foreground` | Active file marks | foreground | `info` | matching row foreground |
 | `rail` | Rail thumb and track | foreground for thumb, background for track | `ui.menu.scroll` | matching terminal default |
 | `filesystem-error-foreground` | Unreadable directory and Broken link icons and labels | foreground | `error` | terminal bright red |

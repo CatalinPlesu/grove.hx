@@ -97,6 +97,19 @@ def theme_with_active_file_backgrounds(
     )
 
 
+@given(
+    "the Host theme defines ui.virtual.whitespace but not ui.virtual.indent-guide",
+    target_fixture="helix_theme",
+)
+def theme_with_whitespace_guides() -> str:
+    theme = TEST_THEME.replace(
+        '"ui.virtual.indent-guide" = { fg = "#888888" }',
+        '"ui.virtual.whitespace" = { fg = "#888888" }',
+    )
+    assert theme != TEST_THEME
+    return theme
+
+
 @when(
     parsers.parse('Helix starts with Grove in Workspace "{workspace_name}"'),
     target_fixture="helix",

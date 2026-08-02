@@ -65,7 +65,7 @@
       guides?
       (foreground
         'guides-foreground
-        '("ui.virtual.indent-guide")
+        '("ui.virtual.indent-guide" "ui.virtual.whitespace")
         Color/Gray))
     (foreground 'active-file-mark-foreground '("info") #f)
     (background 'rail '("ui.menu.scroll") Color/Reset)
