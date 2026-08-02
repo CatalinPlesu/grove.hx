@@ -89,6 +89,27 @@ Feature: Navigate and resize with the Rail
       Then Helix shows the "page-10.txt" document
       And Grove has width 32
 
+  Rule: Across Ancestor stack changes
+
+    Scenario: Keep the Rail thumb height while the Ancestor stack peels
+      Given a Workspace containing entries
+        | kind      | path                          | count |
+        | file      | alpha/beta/sibling/inside.txt |       |
+        | directory | omega                         |       |
+        | file      | tail-{:02d}.txt                | 10    |
+      And "alpha/beta/sibling/inside.txt" is Active
+      When Helix starts with Grove in that Workspace
+      And Grove is focused
+      And the terminal height becomes 6 rows
+      And the Wheel scrolls down over Grove
+      Then the Ancestor stack is "workspace > alpha > beta" above File tree row "sibling"
+      When the Rail thumb height is noted
+      And the Rail thumb is pressed
+      And the Rail thumb is dragged to the bottom
+      Then the Ancestor stack is "workspace" above File tree row "tail-05.txt"
+      And Pane row 6 is "tail-09.txt"
+      And the Rail thumb keeps its height
+
   Rule: Across Workspace changes
 
     Scenario: Cancel a Rail drag when the Workspace changes

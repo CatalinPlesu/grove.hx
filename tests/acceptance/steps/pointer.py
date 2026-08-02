@@ -1,4 +1,4 @@
-from pytest_bdd import parsers, when
+from pytest_bdd import parsers, then, when
 
 from tests.support.host import Helix, MouseContact
 from tests.support.screen import Row, Screen
@@ -190,6 +190,29 @@ def rail_drag_moves_vertically_then_horizontally(helix: Helix) -> None:
 )
 def rail_thumb_is_pressed(helix: Helix) -> MouseContact:
     return _press_rail_thumb(helix)[1]
+
+
+@when(
+    "the Rail thumb height is noted",
+    target_fixture="noted_rail_thumb_height",
+)
+def rail_thumb_height_is_noted(helix: Helix) -> int:
+    return _rail_screen(helix).rail_thumb_height
+
+
+@then("the Rail thumb keeps its height")
+def rail_thumb_keeps_its_height(
+    helix: Helix,
+    noted_rail_thumb_height: int,
+) -> None:
+    eventually(
+        helix,
+        lambda screen: (
+            None
+            if screen.rail_thumb_height == noted_rail_thumb_height
+            else "The Rail thumb height changed with the Ancestor stack"
+        ),
+    )
 
 
 @when(parsers.re(r"^the Rail thumb is dragged to the (?P<edge>top|bottom)$"))

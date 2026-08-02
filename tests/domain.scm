@@ -89,11 +89,15 @@
 (define bottom-anchor (layout.scroll-to top 1 1))
 (define bottom (resolve-flat bottom-anchor GEOMETRY))
 (check
-  "bottom has no avoidable blank rows"
-  (and
-    (= (length (layout.pane-slots bottom)) (layout.height bottom))
-    (not
-      (any? layout.slot-pinned? (layout.pane-slots bottom)))))
+  "bottom keeps its complete Ancestor stack"
+  (equal?
+    (slot-signature bottom)
+    (list
+      (list root-id #t)
+      (list (rows.entry-row-id ROOT "item-08") #f)
+      (list (rows.entry-row-id ROOT "item-09") #f)
+      (list (rows.entry-row-id ROOT "item-10") #f)
+      (list (rows.entry-row-id ROOT "item-11") #f))))
 
 (check
   "absolute Rail movement reaches both ends"
@@ -140,6 +144,25 @@
 
 (define nested-target
   (rows.entry-row-id ROOT "outer/inner/file-00"))
+
+(define nested-top
+  (layout.resolve nested-rows root-id GEOMETRY 16 'left))
+(define nested-bottom
+  (layout.resolve
+    nested-rows
+    (layout.scroll-to nested-top 1 1)
+    GEOMETRY
+    16
+    'left))
+(check
+  "bottom can leave unused Pane rows after the final Visible row"
+  (equal?
+    (slot-signature nested-bottom)
+    (list
+      (list root-id #t)
+      (list (rows.entry-row-id ROOT "tail-00") #f)
+      (list (rows.entry-row-id ROOT "tail-01") #f)
+      (list (rows.entry-row-id ROOT "tail-02") #f))))
 
 (define (pinned-count height)
   (length

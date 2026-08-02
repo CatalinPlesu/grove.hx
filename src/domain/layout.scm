@@ -31,6 +31,7 @@
     ordinary-rows
     ordinary-capacity
     start
+    maximum-start
     total-rows))
 
 (define geometry-x geometry-value-x)
@@ -44,6 +45,7 @@
 (define ordinary-capacity layout-value-ordinary-capacity)
 (define slot-row slot-value-row)
 (define slot-pinned? slot-value-pinned?)
+(define maximum-start layout-value-maximum-start)
 
 (define (x layout)
   (define host-geometry (layout-value-geometry layout))
@@ -113,6 +115,23 @@
           (cdr ids)
           (if row (cons row result) result))))))
 
+(define (ancestor-stack-size row host-height)
+  (define depth (rows.row-depth row))
+  (if (< depth host-height) depth 0))
+
+(define (bottom-start-index visible-rows total host-height)
+  (define initial (max 0 (- total host-height)))
+  (let loop ([candidate initial]
+             [remaining-rows (list-drop visible-rows initial)])
+    (define pinned
+      (ancestor-stack-size (car remaining-rows) host-height))
+    (if
+      (<= (+ pinned (- total candidate)) host-height)
+      candidate
+      (loop
+        (+ candidate 1)
+        (cdr remaining-rows)))))
+
 (define (resolve visible-rows anchor host-geometry requested-width side-value)
   (unless
     (and
@@ -133,18 +152,16 @@
              (or
                (and anchor (rows.index-of visible-rows anchor))
                0)]
-           [maximum-start (max 0 (- total host-height))]
-           ; Omit pinned ancestors at the bottom so the last rows remain reachable.
-           [bottom-clamped? (>= anchor-index maximum-start)]
+           [maximum-start
+             (bottom-start-index visible-rows total host-height)]
            [start-index
-             (if bottom-clamped? maximum-start anchor-index)]
-           [anchor-row (rows.at visible-rows anchor-index)]
-           [ancestors
-             (if bottom-clamped?
-               '()
-               (ancestor-rows visible-rows anchor-row))]
+             (min anchor-index maximum-start)]
+           [anchor-row (rows.at visible-rows start-index)]
            [pinned
-             (if (< (length ancestors) host-height) ancestors '())]
+             (if
+               (> (ancestor-stack-size anchor-row host-height) 0)
+               (ancestor-rows visible-rows anchor-row)
+               '())]
            [capacity (- host-height (length pinned))]
            [ordinary (slice visible-rows start-index capacity)]
            [slots
@@ -161,6 +178,7 @@
         ordinary
         capacity
         start-index
+        maximum-start
         total))))
 
 (define (row-id-at visible-rows index)
@@ -264,21 +282,14 @@
 
 (define (thumb-height layout)
   (define total (layout-value-total-rows layout))
-  (define capacity
-    (min total (layout-value-ordinary-capacity layout)))
+  (define pane-height (height layout))
   (and
-    (> total capacity)
+    (> total pane-height)
     (max
       1
       (quotient
-        (* (height layout) capacity)
+        (* pane-height pane-height)
         total))))
-
-(define (maximum-start layout)
-  (max
-    0
-    (- (layout-value-total-rows layout)
-      (height layout))))
 
 (define (thumb-y layout)
   (define current-height (thumb-height layout))

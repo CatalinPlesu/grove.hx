@@ -194,25 +194,30 @@ class Screen:
 
     @property
     def rail_thumb(self) -> tuple[int, int] | None:
-        if self.rail is None:
-            return None
-        return next(
-            (
-                (self.rail + 1, row)
-                for row, line in enumerate(self.lines, start=1)
-                if line[self.rail] in "▐▌"
-            ),
-            None,
+        return (
+            (self.rail + 1, self._rail_thumb_rows[0])
+            if self.rail is not None and self._rail_thumb_rows
+            else None
         )
+
+    @cached_property
+    def _rail_thumb_rows(self) -> tuple[int, ...]:
+        if self.rail is None:
+            return ()
+        return tuple(
+            row
+            for row, line in enumerate(self.lines, start=1)
+            if line[self.rail] in "▐▌"
+        )
+
+    @property
+    def rail_thumb_height(self) -> int:
+        return len(self._rail_thumb_rows)
 
     def rail_track(self, direction: str) -> tuple[int, int] | None:
         if self.rail is None:
             return None
-        thumb_rows = [
-            row
-            for row, line in enumerate(self.lines, start=1)
-            if line[self.rail] in "▐▌"
-        ]
+        thumb_rows = self._rail_thumb_rows
         if not thumb_rows:
             return None
         rows = (

@@ -135,7 +135,7 @@ Feature: Navigate the File tree with the keyboard
     And the editor inserts "paged-" and saves
     Then the content of "anchor.txt" starts with "paged-"
 
-  Scenario Outline: Move Cursor up by the visible Grove height
+  Scenario Outline: Move Cursor up by ordinary capacity
     Given a Workspace containing entries
       | kind | path            | count |
       | file | anchor.txt      |       |
@@ -153,8 +153,8 @@ Feature: Navigate the File tree with the keyboard
 
     Examples:
       | height | expected    |
-      | 20     | page-19.txt |
-      | 30     | page-09.txt |
+      | 20     | page-20.txt |
+      | 30     | page-10.txt |
 
   Scenario: Expand a directory with Right
     Given a Workspace containing entries

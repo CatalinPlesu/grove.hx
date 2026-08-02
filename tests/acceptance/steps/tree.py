@@ -378,6 +378,18 @@ def pane_row_is_not(helix: Helix, number: int, name: str) -> None:
     )
 
 
+@then(parsers.parse("Pane row {number:d} is unused"))
+def pane_row_is_unused(helix: Helix, number: int) -> None:
+    eventually(
+        helix,
+        lambda screen: (
+            None
+            if not screen.grove_row_text(number).strip()
+            else f"Pane row {number} was not unused"
+        ),
+    )
+
+
 @then(parsers.parse('the File tree ends with "{name}"'))
 def file_tree_ends_with(helix: Helix, name: str) -> None:
     eventually(

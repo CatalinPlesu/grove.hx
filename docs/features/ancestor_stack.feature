@@ -40,6 +40,21 @@ Feature: Keep hierarchy visible while the File tree scrolls
     Then Pane row 1 is "inner"
     And Pane row 2 is "active.txt"
 
+  Scenario: Keep the hierarchy at the File tree end
+    Given a Workspace containing entries
+      | kind      | path                          | count |
+      | file      | alpha/beta/sibling/inside.txt |       |
+      | directory | omega                         |       |
+      | file      | tail-{:02d}.txt                | 3     |
+    And "alpha/beta/sibling/inside.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And Grove is focused
+    And the terminal height becomes 6 rows
+    And the Wheel scrolls to "tail-02.txt" at the File tree bottom
+    Then the Ancestor stack is "workspace" above File tree row "omega"
+    And Pane row 5 is "tail-02.txt"
+    And Pane row 6 is unused
+
   Scenario: Keep a Pinned row inert while Wheel still scrolls
     Given a Workspace containing entries
       | kind | path                             | count |
