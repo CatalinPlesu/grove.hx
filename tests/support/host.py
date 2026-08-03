@@ -19,8 +19,13 @@ from tests.support.workspace import Workspace
 REPOSITORY = Path(__file__).parents[2]
 DEFAULT_STARTUP = "(grove-start!)"
 _NAMED_KEYS = {
+    "Ctrl-d": "C-d",
+    "Ctrl-j": "C-j",
+    "Ctrl-n": "C-n",
+    "Ctrl-r": "C-r",
     "Ctrl-s": "C-s",
     "Ctrl-v": "C-v",
+    "Ctrl-y": "C-y",
     "Down": "Down",
     "Enter": "Enter",
     "Escape": "Escape",
@@ -56,6 +61,7 @@ class Helix:
     pane: Pane
     session: Session
     workspace: Workspace
+    _closed_documents_log: Path = field(repr=False)
     _workspace_history: list[Workspace] = field(
         default_factory=list,
         init=False,
@@ -97,13 +103,24 @@ class Helix:
     def type(self, text: str, *, enter: bool = False) -> None:
         self.pane.send_keys(text, enter=enter, literal=True)
 
+    def paste(self, text: str) -> None:
+        self.pane.server.set_buffer(text)
+        self.pane.paste_buffer(delete_after=True, bracket=True)
+
     def command(self, command: str) -> None:
         if not command.startswith(":"):
             raise ValueError(f"Helix command must start with ':': {command!r}")
-        self.pane.server.set_buffer(command[1:])
         self.type(":")
-        self.pane.paste_buffer(delete_after=True, bracket=True)
+        self.paste(command[1:])
         self.pane.enter()
+
+    @property
+    def closed_documents(self) -> tuple[str, ...]:
+        if not self._closed_documents_log.exists():
+            return ()
+        return tuple(
+            self._closed_documents_log.read_text(encoding="utf-8").splitlines()
+        )
 
     def press(self, *, row: int, column: int = 5) -> MouseContact:
         self._send_raw(f"\x1b[<0;{column};{row}M")
@@ -197,6 +214,8 @@ def start(
     startup: str,
     theme: str,
 ) -> Helix:
+    closed_documents_log = root / "closed-documents"
+    startup = _document_close_hook(closed_documents_log) + "\n" + startup
     config_home, steel_home = _prepare_homes(root, startup, theme)
     command = _command(
         config_home,
@@ -215,6 +234,22 @@ def start(
         session.active_pane,
         session,
         workspace,
+        closed_documents_log,
+    )
+
+
+def _document_close_hook(destination: Path) -> str:
+    path = json.dumps(str(destination))
+    return (
+        '(require "helix/editor.scm")\n'
+        "(register-hook\n"
+        " 'document-closed\n"
+        " (lambda (event)\n"
+        f"  (call-with-output-file {path}\n"
+        "   (lambda (port)\n"
+        "    (display (doc-closed-path event) port)\n"
+        "    (newline port))\n"
+        "   #:exists 'append)))"
     )
 
 
@@ -254,8 +289,15 @@ def _prepare_homes(
         f'(require "{REPOSITORY / "grove.scm"}")\n'
         '(require "helix/components.scm")\n'
         '(require "helix/keymaps.scm")\n'
+        '(require "helix/misc.scm")\n'
+        "(define (grove-test-key-received)\n"
+        ' (set-status! "Grove test key reached Helix"))\n'
         f"{startup}\n"
-        '(keymap (global) (normal (space (e ":grove-focus!"))))\n',
+        "(keymap (global)\n"
+        ' (normal (space (e ":grove-focus!"))\n'
+        "  (C-n grove-test-key-received) (C-r grove-test-key-received)\n"
+        "  (C-d grove-test-key-received) (C-j grove-test-key-received)\n"
+        "  (C-y grove-test-key-received)))\n",
         encoding="utf-8",
     )
     return config_home, steel_home

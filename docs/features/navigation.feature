@@ -33,6 +33,8 @@ Feature: Navigate the File tree with the keyboard
       | Enter |
       | Left  |
       | Right |
+      | r     |
+      | d     |
 
   Scenario: Keep Cursor independent from Helix's Active file
     Given a Workspace containing entries
@@ -58,6 +60,25 @@ Feature: Navigate the File tree with the keyboard
     And Grove is focused
     And Grove receives Helix's file-picker chord for "target.txt"
     Then Helix shows the "target.txt" document
+
+  Scenario Outline: Pass modified plain keys to Helix
+    Given a Workspace containing entries
+      | path       |
+      | anchor.txt |
+    And "anchor.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And Grove is focused
+    And Grove receives "<key>"
+    Then Helix receives the modified key
+    And "anchor.txt" has no Cursor mark
+
+    Examples:
+      | key    |
+      | Ctrl-n |
+      | Ctrl-r |
+      | Ctrl-d |
+      | Ctrl-j |
+      | Ctrl-y |
 
   Scenario: Move Cursor down and clamp at the File tree end
     Given a Workspace containing entries

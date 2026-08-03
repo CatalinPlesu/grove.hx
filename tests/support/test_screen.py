@@ -119,7 +119,7 @@ def test_consistently_fails_without_a_complete_frame() -> None:
     pane = Mock()
     pane.pane_dead = "0"
     pane.capture_pane.return_value = styled_lines
-    host = Helix(pane, Mock(), Workspace(Path("workspace")))
+    host = Helix(pane, Mock(), Workspace(Path("workspace")), Path("closed-documents"))
     with pytest.raises(
         AssertionError,
         match="(?s)No complete frame.*partially rendered",

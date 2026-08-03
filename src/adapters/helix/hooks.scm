@@ -25,6 +25,7 @@
     (dispatch!
       (model.save-started (editor-document->path document-id))))
   (define (document-closed! _event)
+    (observe-host!)
     (observe-unsaved!))
   (register-hook 'document-focus-lost document-focus-lost!)
   (register-hook 'document-opened document-opened!)

@@ -99,6 +99,15 @@ class Workspace:
         self._remember_directories(destination_path)
         self.paths.add(destination_path)
 
+    def refresh(self) -> None:
+        entries = tuple(self.root.rglob("*", recurse_symlinks=False))
+        self.paths = {PurePath(entry.relative_to(self.root)) for entry in entries}
+        self.directories = {
+            PurePath(entry.relative_to(self.root))
+            for entry in entries
+            if entry.is_dir() and not entry.is_symlink()
+        }
+
     def set_unreadable(self, name: str) -> None:
         path = self.root / name
         if not path.exists():

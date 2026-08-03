@@ -5,7 +5,11 @@ from pytest_bdd import parsers, then, when
 
 from tests.support.host import Helix
 from tests.support.screen import Screen
-from tests.support.waiting import consistently, eventually
+from tests.support.waiting import (
+    consistently,
+    eventually,
+    eventually_bottom_line_contains,
+)
 from tests.support.waiting import focus_grove as wait_for_focus
 from tests.support.workspace import Workspace
 
@@ -80,6 +84,11 @@ def editor_moves_and_aligns_line(
 @when(parsers.parse('the editor inserts "{text}" without saving'))
 def editor_inserts_without_saving(helix: Helix, text: str) -> None:
     _insert(helix, text)
+
+
+@when(parsers.parse('the editor pastes "{text}"'))
+def editor_pastes(helix: Helix, text: str) -> None:
+    helix.paste(text)
 
 
 @when(parsers.parse('the editor inserts "{text}" and saves'))
@@ -293,6 +302,23 @@ def editor_cursor_is_on_line(helix: Helix, line_number: int) -> None:
             and view.cursor is not None
             and view.cursor[0] == line_number
             else f"Helix did not move the editor cursor to line {line_number}"
+        ),
+    )
+
+
+@then("Helix receives the modified key")
+def helix_receives_modified_key(helix: Helix) -> None:
+    eventually_bottom_line_contains(helix, "Grove test key reached Helix")
+
+
+@then(parsers.parse('the editor does not contain "{text}"'))
+def editor_does_not_contain(helix: Helix, text: str) -> None:
+    consistently(
+        helix,
+        lambda screen: (
+            f'Helix inserted "{text}" into the editor'
+            if screen.editor_contains(text)
+            else None
         ),
     )
 

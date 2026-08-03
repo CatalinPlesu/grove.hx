@@ -38,6 +38,13 @@
 (define (key-message event)
   (define character (key-event-char event))
   (define modifier (key-event-modifier event))
+  (define (plain? expected)
+    (and
+      (or
+        (= modifier 0)
+        (= modifier key-modifier-shift))
+      (char? character)
+      (char=? character expected)))
   (cond
     [(key-event-page-up? event)
       (model.cursor-move-requested 'previous-page)]
@@ -45,19 +52,19 @@
       (model.cursor-move-requested 'next-page)]
     [(or
         (key-event-down? event)
-        (and (char? character) (char=? character #\j)))
+        (plain? #\j))
       (model.cursor-move-requested 'next)]
     [(or
         (key-event-up? event)
-        (and (char? character) (char=? character #\k)))
+        (plain? #\k))
       (model.cursor-move-requested 'previous)]
     [(or
         (key-event-right? event)
-        (and (char? character) (char=? character #\l)))
+        (plain? #\l))
       (model.cursor-expansion-requested 'expand)]
     [(or
         (key-event-left? event)
-        (and (char? character) (char=? character #\h)))
+        (plain? #\h))
       (model.cursor-expansion-requested 'collapse)]
     [(key-event-enter? event)
       (model.cursor-open-requested 'normal)]
@@ -75,10 +82,18 @@
         (char? character)
         (char=? character #\v))
       (model.cursor-open-requested 'vertical-split)]
-    [(and (char? character) (char=? character #\+))
+    [(plain? #\+)
       (model.resize-by-requested 1)]
-    [(and (char? character) (char=? character #\-))
+    [(plain? #\-)
       (model.resize-by-requested -1)]
+    [(plain? #\n)
+      (model.cursor-mutation-requested 'file)]
+    [(plain? #\N)
+      (model.cursor-mutation-requested 'directory)]
+    [(plain? #\r)
+      (model.cursor-mutation-requested 'rename)]
+    [(plain? #\d)
+      (model.cursor-mutation-requested 'delete)]
     [else #f]))
 
 (define (key-result current-model event)

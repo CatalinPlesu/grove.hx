@@ -8,6 +8,7 @@
 (require (prefix-in git. "git.scm"))
 (require (prefix-in input. "helix/input.scm"))
 (require (prefix-in host. "helix/host.scm"))
+(require (prefix-in files. "helix/files.scm"))
 (require (prefix-in hooks. "helix/hooks.scm"))
 (require (prefix-in theme. "helix/theme.scm"))
 (require (prefix-in render. "helix/render.scm"))
@@ -71,6 +72,12 @@
       (host.open-file!
         (model.open-file-command-path command)
         (model.open-file-command-mode command))]
+    [(model.create-prompt-command? command)
+      (files.prompt-create! command dispatch! refresh-now!)]
+    [(model.rename-prompt-command? command)
+      (files.prompt-rename! command refresh-now!)]
+    [(model.delete-confirmation-command? command)
+      (files.confirm-delete! command refresh-now!)]
     [else (error "unknown Model command")]))
 
 (define (dispatch! message)

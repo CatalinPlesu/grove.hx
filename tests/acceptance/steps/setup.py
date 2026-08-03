@@ -46,7 +46,7 @@ def start_helix(
     grove_start_options: tuple[str, ...],
     helix_theme: str,
 ) -> Helix:
-    startup = (
+    grove_startup = (
         f"(grove-start! {' '.join(grove_start_options)})"
         if grove_start_options
         else DEFAULT_STARTUP
@@ -57,7 +57,7 @@ def start_helix(
         request,
         workspace,
         active_file,
-        startup=startup,
+        startup=grove_startup,
         theme=helix_theme,
     )
 

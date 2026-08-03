@@ -2,7 +2,7 @@ from pytest_bdd import parsers, then, when
 
 from tests.support.host import Helix
 from tests.support.screen import Screen
-from tests.support.waiting import consistently, eventually, focus_grove
+from tests.support.waiting import capture, consistently, eventually, focus_grove
 from tests.support.workspace import Workspace
 
 
@@ -15,6 +15,11 @@ def file_tree_shows(helix: Helix, name: str) -> None:
             None if screen.row(name) is not None else f'Grove did not show "{name}"'
         ),
     )
+
+
+@then(parsers.parse('the File tree already shows "{name}"'))
+def file_tree_already_shows(helix: Helix, name: str) -> None:
+    assert capture(helix).row(name) is not None, f'Grove did not yet show "{name}"'
 
 
 @then(parsers.parse('the content of "{name}" starts with "{text}"'))
@@ -157,6 +162,13 @@ def entry_uses_active_file_mark(helix: Helix, name: str) -> None:
     leading = row.text[: row.label_column()]
     assert leading.count("*") == 1
     assert "·" not in leading
+
+
+@then(parsers.parse('"{name}" already uses the Active file mark'))
+def entry_already_uses_active_file_mark(helix: Helix, name: str) -> None:
+    row = capture(helix).row(name)
+    assert row is not None
+    assert "*" in row.text[: row.label_column()]
 
 
 @then(parsers.parse('"{name}" uses the Cursor mark in the first cell'))

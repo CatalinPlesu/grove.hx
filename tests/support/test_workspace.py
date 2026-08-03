@@ -82,3 +82,28 @@ def test_renamed_file_updates_its_known_path(tmp_path: Path) -> None:
         PurePath("nested/destination.txt"),
     }
     assert workspace.directories == {PurePath("nested")}
+
+
+def test_refresh_rebuilds_paths_without_following_directory_links(
+    tmp_path: Path,
+) -> None:
+    workspace = Workspace.create(
+        tmp_path / "workspace",
+        [
+            ["kind", "path", "target"],
+            ["directory", "target", ""],
+            ["file", "target/inside.txt", ""],
+            ["unfollowed directory link", "visible", "target"],
+        ],
+    )
+    workspace.paths.clear()
+    workspace.directories.clear()
+
+    workspace.refresh()
+
+    assert workspace.paths == {
+        PurePath("target"),
+        PurePath("target/inside.txt"),
+        PurePath("visible"),
+    }
+    assert workspace.directories == {PurePath("target")}

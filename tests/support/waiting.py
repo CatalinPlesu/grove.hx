@@ -39,6 +39,20 @@ def eventually(host: Helix, check: Check) -> Screen:
     raise AssertionError(f"{last_mismatch}\n\nLast frame:\n{frame}")
 
 
+def eventually_bottom_line_contains(host: Helix, text: str) -> None:
+    deadline = time.monotonic() + 10
+    last_lines: tuple[str, ...] | None = None
+    while time.monotonic() < deadline:
+        if host.is_dead():
+            raise AssertionError("Helix exited before the expected state")
+        last_lines = tuple(host.pane.capture_pane())
+        if last_lines and text in last_lines[-1]:
+            return
+        time.sleep(0.05)
+    frame = "\n".join(last_lines) if last_lines is not None else "<no frame>"
+    raise AssertionError(f'Helix did not show "{text}"\n\nLast frame:\n{frame}')
+
+
 def focus_grove(host: Helix) -> None:
     eventually(
         host,

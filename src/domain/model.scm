@@ -22,6 +22,7 @@
   cursor-move-requested
   cursor-expansion-requested
   cursor-open-requested
+  cursor-mutation-requested
   row-pressed
   scroll-by-requested
   scroll-to-requested
@@ -32,7 +33,18 @@
   refresh-command?
   open-file-command?
   open-file-command-path
-  open-file-command-mode)
+  open-file-command-mode
+  create-prompt-command?
+  create-prompt-command-kind
+  create-prompt-command-root
+  create-prompt-command-parent-id
+  rename-prompt-command?
+  rename-prompt-command-root
+  rename-prompt-command-source-id
+  delete-confirmation-command?
+  delete-confirmation-command-root
+  delete-confirmation-command-source-id
+  delete-confirmation-command-recursive?)
 
 (struct model-value
   (root tree git-status unsaved-paths active-path
@@ -56,6 +68,7 @@
 (struct cursor-move-requested (direction))
 (struct cursor-expansion-requested (action))
 (struct cursor-open-requested (mode))
+(struct cursor-mutation-requested (action))
 (struct row-pressed (id))
 (struct scroll-by-requested (amount))
 (struct scroll-to-requested (numerator denominator))
@@ -64,6 +77,10 @@
 
 (struct refresh-command ())
 (struct open-file-command (path mode))
+(struct create-prompt-command (kind root parent-id))
+(struct rename-prompt-command (root source-id))
+(struct delete-confirmation-command
+  (root source-id recursive?))
 (struct update-result (model command))
 
 (define root model-value-root)
@@ -123,6 +140,9 @@
     side-value
     icons-value
     guides-value))
+
+(define (without-focus model)
+  (copy-model model #:cursor #f))
 
 (define (visible-rows model)
   (if
@@ -261,7 +281,7 @@
   (define focused-layout (resolved-layout expanded-model))
   (if
     (not focused-layout)
-    (copy-model model #:cursor #f)
+    (without-focus model)
     (let* ([target-id
              (if
                active-id
@@ -319,7 +339,7 @@
           (not (model-value-cursor next-model))
           (resolved-layout next-model))
         next-model
-        (copy-model next-model #:cursor #f)))))
+        (without-focus next-model)))))
 
 (define (clamp value lower upper)
   (max lower (min upper value)))
@@ -457,7 +477,7 @@
       (toggle-directory model current-rows row)]
     [(rows.row-file? row)
       (update-result
-        (copy-model model #:cursor #f)
+        (without-focus model)
         (open-file-command (rows.row-path row) mode))]
     [else
       (update-result model #f)]))
@@ -483,6 +503,51 @@
     current-rows
     (current-cursor-row revealed current-rows)
     mode))
+
+(define (mutation-parent-id row)
+  (if
+    (or
+      (path.root-id? (rows.row-relative-id row))
+      (tree.expandable-kind? (rows.row-kind row)))
+    (rows.row-relative-id row)
+    (path.parent-id (rows.row-relative-id row))))
+
+(define (on-cursor-mutation-requested model action)
+  (define current-rows (visible-rows model))
+  (define current-layout (resolved-layout-for model current-rows))
+  (define revealed (reveal-cursor model current-layout))
+  (define row
+    (current-cursor-row revealed current-rows))
+  (define source-id (and row (rows.row-relative-id row)))
+  (cond
+    [(not row) (update-result model #f)]
+    [(member action '(file directory))
+      (update-result
+        revealed
+        (create-prompt-command
+          action
+          (model-value-root model)
+          (mutation-parent-id row)))]
+    [(equal? action 'rename)
+      (if
+        (path.root-id? source-id)
+        (update-result model #f)
+        (update-result
+          revealed
+          (rename-prompt-command
+            (model-value-root model)
+            source-id)))]
+    [(equal? action 'delete)
+      (if
+        (path.root-id? source-id)
+        (update-result model #f)
+        (update-result
+          revealed
+          (delete-confirmation-command
+            (model-value-root model)
+            source-id
+            (tree.expandable-kind? (rows.row-kind row)))))]
+    [else (error "invalid Cursor mutation action")]))
 
 (define (on-scroll-by-requested model amount)
   (define current-layout (resolved-layout model))
@@ -560,7 +625,7 @@
           (geometry-observed-geometry message))
         #f)]
     [(focus-released? message)
-      (update-result (copy-model model #:cursor #f) #f)]
+      (update-result (without-focus model) #f)]
     [(cursor-move-requested? message)
       (on-cursor-move-requested
         model
@@ -573,6 +638,10 @@
       (on-cursor-open-requested
         model
         (cursor-open-requested-mode message))]
+    [(cursor-mutation-requested? message)
+      (on-cursor-mutation-requested
+        model
+        (cursor-mutation-requested-action message))]
     [(row-pressed? message)
       (define current-rows (visible-rows model))
       (activate-row

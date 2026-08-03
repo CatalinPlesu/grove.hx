@@ -144,6 +144,10 @@ binding. Mouse input works without focusing Grove.
 | `Enter` | Toggle a directory or open a file |
 | `Ctrl-s` | Open a file in a horizontal split |
 | `Ctrl-v` | Open a file in a vertical split |
+| `n` | Create and open a new file |
+| `N` | Create a new directory |
+| `r` | Rename or move a file, link, or directory |
+| `d` | Permanently delete a file or link, or recursively delete a directory |
 | `+` / `-` | Resize Grove |
 | `Escape` | Return focus to the editor |
 | Click a file or directory | Open the file or toggle the directory |
