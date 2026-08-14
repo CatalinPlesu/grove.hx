@@ -156,4 +156,4 @@
   (when *model*
     (set! *focus-next-frame?* #t)
     (helix.redraw))
-  #t)
+  void)
