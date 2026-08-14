@@ -31,14 +31,8 @@ with the latest revision:
 forge pkg install --git https://github.com/ivoronin/grove.hx.git --force
 ```
 
-Add Grove to `~/.config/helix/init.scm`:
-
-```scheme
-(require "grove/grove.scm")
-(require "helix/keymaps.scm")
-```
-
-Choose when Grove should start.
+Choose when Grove should start, then copy that setup into
+`~/.config/helix/init.scm`.
 
 ### Workspace-only
 
@@ -46,6 +40,9 @@ Start Grove only when Helix receives `-w` or `--working-dir`. Ordinary
 file-editing sessions remain unchanged.
 
 ```scheme
+(require "grove/grove.scm")
+(require "helix/keymaps.scm")
+
 (define (grove-workspace-launch?)
   (let loop ([args (cdr (command-line))])
     (cond
@@ -58,6 +55,11 @@ file-editing sessions remain unchanged.
 
 (when (grove-workspace-launch?)
   (grove-start!))
+
+(keymap (global)
+  (normal
+    (space
+      (e ":grove-focus!"))))
 ```
 
 Launch Helix with a Workspace explicitly:
@@ -74,12 +76,11 @@ Start Grove in every Helix session, using Helix's working directory as the
 Workspace:
 
 ```scheme
+(require "grove/grove.scm")
+(require "helix/keymaps.scm")
+
 (grove-start!)
-```
 
-With either mode, add a binding for keyboard navigation:
-
-```scheme
 (keymap (global)
   (normal
     (space
