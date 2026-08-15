@@ -1,5 +1,4 @@
 (require (prefix-in git. "../../domain/git.scm"))
-(require (prefix-in path. "../../domain/path.scm"))
 
 (provide parse)
 
@@ -33,14 +32,7 @@
 
 (define (workspace-id prefix path)
   (and (starts-with? path prefix)
-    (let ([id (substring path (string-length prefix) (string-length path))])
-      (and (path.valid-id? id) id))))
-
-(define (directory-record? path)
-  (ends-with? path "/"))
-
-(define (without-terminal-slash path)
-  (substring path 0 (- (string-length path) 1)))
+    (substring path (string-length prefix) (string-length path))))
 
 (define (parse-records output workspace-prefix)
   (let loop ([records (split-many output "\0")] [path-statuses '()])
@@ -54,9 +46,12 @@
         (define record (car records))
         (define code (substring record 0 2))
         (define raw-path (substring record 3 (string-length record)))
-        (define directory? (directory-record? raw-path))
+        (define directory? (ends-with? raw-path "/"))
         (define normalized
-          (if directory? (without-terminal-slash raw-path) raw-path))
+          (if
+            directory?
+            (substring raw-path 0 (- (string-length raw-path) 1))
+            raw-path))
         (define id (workspace-id workspace-prefix normalized))
         (cond
           [(not id) #f]

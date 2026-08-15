@@ -20,9 +20,8 @@
   rail-part-at
   rail-thumb-offset
   rail-resize-width
-  rail-scroll-offset
-  rail-scroll-limit
-  rail-page-amount)
+  rail-scroll-anchor
+  rail-page-anchor)
 
 (struct geometry-value (x y width height))
 (struct slot-value (entry pinned?))
@@ -61,9 +60,6 @@
 
 (define (height layout)
   (geometry-height (layout-value-geometry layout)))
-
-(define (maximum-width layout)
-  (- (geometry-width (layout-value-geometry layout)) 1))
 
 (define (geometry x y width height)
   (unless
@@ -324,7 +320,7 @@
 
 (define (rail-resize-width layout column)
   (min
-    (maximum-width layout)
+    (- (geometry-width (layout-value-geometry layout)) 1)
     (if
       (equal? (layout-value-side layout) 'right)
       (-
@@ -333,19 +329,7 @@
         column)
       (+ 1 (- column (x layout))))))
 
-(define (rail-scroll-limit layout)
-  (define current-height
-    (thumb-height layout))
-  (and
-    current-height
-    (let ([travel
-            (max
-              0
-              (- (height layout)
-                current-height))])
-      (and (> travel 0) travel))))
-
-(define (rail-page-amount layout row)
+(define (rail-page-anchor layout row)
   (define current-y (thumb-y layout))
   (define current-height
     (thumb-height layout))
@@ -353,23 +337,29 @@
     current-y
     (cond
       [(< row current-y)
-        (- (layout-value-ordinary-capacity layout))]
+        (scroll-by layout (- (layout-value-ordinary-capacity layout)))]
       [(>= row (+ current-y current-height))
-        (layout-value-ordinary-capacity layout)]
+        (scroll-by layout (layout-value-ordinary-capacity layout))]
       [else #f])))
 
-(define (rail-scroll-offset layout row grab-offset)
+(define (rail-scroll-anchor layout row grab-offset)
   (define current-height
     (thumb-height layout))
   (define travel
-    (rail-scroll-limit layout))
+    (and
+      current-height
+      (max 0 (- (height layout) current-height))))
   (and
     current-height
     travel
+    (> travel 0)
     (let ([current-grab-offset
             (min grab-offset (- current-height 1))])
-      (clamp
-        (- (- row (y layout))
-          current-grab-offset)
-        0
+      (scroll-to
+        layout
+        (clamp
+          (- (- row (y layout))
+            current-grab-offset)
+          0
+          travel)
         travel))))

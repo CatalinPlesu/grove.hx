@@ -50,9 +50,7 @@
       (define candidate (editor-document->path document-id))
       (and
         candidate
-        (or
-          (equal? candidate source)
-          (path.path-inside? source candidate))))
+        (path.id-for-path source candidate)))
     (editor-all-documents)))
 
 (define (first-dirty documents)

@@ -8,14 +8,9 @@
 (define (workspace-root)
   (helix-static.get-helix-cwd))
 
-(define (editor-view-open?)
-  (and
-    (findf editor-doc-in-view? (editor-all-documents))
-    #t))
-
 (define (focused-document-id)
   (and
-    (editor-view-open?)
+    (findf editor-doc-in-view? (editor-all-documents))
     (editor->doc-id (editor-focus))))
 
 (define (active-path)

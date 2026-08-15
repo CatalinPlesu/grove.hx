@@ -9,9 +9,6 @@
 
 (struct run (text style))
 
-(define (theme-value theme role)
-  (hash-ref theme role))
-
 (define (replace-control-characters text)
   (list->string
     (map (lambda (character)
@@ -42,20 +39,20 @@
   (define entry (layout.slot-entry slot))
   (cond
     [(row.cursor? current-facts entry)
-      (theme-value current-theme 'cursor)]
+      (hash-ref current-theme 'cursor)]
     [(layout.slot-pinned? slot)
-      (theme-value current-theme 'pinned-ancestor-row)]
+      (hash-ref current-theme 'pinned-ancestor-row)]
     [(row.active-file? current-facts entry)
-      (theme-value current-theme 'active-file)]
-    [else (theme-value current-theme 'visible-row)]))
+      (hash-ref current-theme 'active-file)]
+    [else (hash-ref current-theme 'visible-row)]))
 
 (define (row-leading-runs entry current-facts current-theme base-style)
   (define guides
-    (theme-value current-theme 'guides-foreground))
+    (hash-ref current-theme 'guides-foreground))
   (define guides-style
     (if guides (style-fg base-style guides) base-style))
   (define active-file-foreground
-    (theme-value current-theme 'active-file-mark-foreground))
+    (hash-ref current-theme 'active-file-mark-foreground))
   (define active-file-style
     (if
       active-file-foreground
@@ -106,7 +103,7 @@
                 result))])])))
 
 (define (icon-area-runs entry error-icon current-facts current-theme base-style)
-  (define palette (theme-value current-theme 'icon-palette))
+  (define palette (hash-ref current-theme 'icon-palette))
   (define icon
     (and
       palette
@@ -133,7 +130,7 @@
             error-icon
             (style-fg
               base-style
-              (theme-value current-theme 'filesystem-error-foreground)))]
+              (hash-ref current-theme 'filesystem-error-foreground)))]
         [(path.root-id? (tree.entry-id entry))
           (run "󰙅" base-style)]
         [(member (tree.entry-kind entry) '(directory directory-link))
@@ -161,10 +158,10 @@
     (or
       (and
         error-icon
-        (theme-value current-theme 'filesystem-error-foreground))
+        (hash-ref current-theme 'filesystem-error-foreground))
       (and
         (member git-status '(conflict deleted modified created))
-        (theme-value current-theme git-status))))
+        (hash-ref current-theme git-status))))
   (define label-base
     (if
       label-foreground
@@ -200,7 +197,7 @@
             unsaved-status
             (style-fg
               base-style
-              (theme-value current-theme 'unsaved-mark-foreground))
+              (hash-ref current-theme 'unsaved-mark-foreground))
             base-style))))))
 
 (define (rail-glyph-for part side)
@@ -237,7 +234,7 @@
     (if
       appearance
       (car appearance)
-      (theme-value current-theme 'pane-background)))
+      (hash-ref current-theme 'pane-background)))
   (define base-style
     (and
       appearance
@@ -262,9 +259,9 @@
         (style)
         (if
           (equal? rail-part 'thumb)
-          (theme-value current-theme 'rail-thumb)
-          (theme-value current-theme 'rail-track)))
-      (theme-value current-theme 'pane-background))))
+          (hash-ref current-theme 'rail-thumb)
+          (hash-ref current-theme 'rail-track)))
+      (hash-ref current-theme 'pane-background))))
 
 (define (draw! frame current-layout current-facts current-theme)
   (let loop ([offset 0]

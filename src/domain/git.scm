@@ -8,23 +8,7 @@
 (define path-status-id path-status-value-id)
 (define path-status-status path-status-value-status)
 
-(define (valid-path-status? status)
-  (and
-    (member
-      status
-      '(conflicted deleted renamed copied added untracked type-changed modified
-        ignored
-        ignored-tree))
-    #t))
-
-(define (path-status id status)
-  (unless
-    (and
-      (path.valid-id? id)
-      (not (path.root-id? id))
-      (valid-path-status? status))
-    (error "invalid Git path status"))
-  (path-status-value id status))
+(define path-status path-status-value)
 
 (define (semantic-status raw)
   (cond

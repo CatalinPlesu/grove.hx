@@ -156,19 +156,6 @@
     (>= row (layout.y current-layout))
     (< row (+ (layout.y current-layout) (layout.height current-layout)))))
 
-(define (scroll-to current-layout row grab-offset)
-  (define offset
-    (layout.rail-scroll-offset current-layout row grab-offset))
-  (define limit (layout.rail-scroll-limit current-layout))
-  (and
-    (integer? offset)
-    (integer? limit)
-    (layout.scroll-to current-layout offset limit)))
-
-(define (page current-layout row)
-  (define amount (layout.rail-page-amount current-layout row))
-  (and (integer? amount) (layout.scroll-by current-layout amount)))
-
 (define (anchor-update anchor)
   (and anchor (model.scroll-anchor-requested *model* anchor)))
 
@@ -216,7 +203,8 @@
 (define (scroll! state current-layout row grab-offset)
   (finish-event!
     state
-    (anchor-update (scroll-to current-layout row grab-offset))
+    (anchor-update
+      (layout.rail-scroll-anchor current-layout row grab-offset))
     #f))
 
 (define (continue-press! current-gesture current-layout column row release?)
@@ -239,7 +227,10 @@
           (equal? kind 'track-press)
           (= column (gesture-origin-x current-gesture))
           (= row (gesture-origin-y current-gesture)))
-      (finish-event! #f (anchor-update (page current-layout row)) #f)]
+      (finish-event!
+        #f
+        (anchor-update (layout.rail-page-anchor current-layout row))
+        #f)]
     [else
       (finish-event!
         (state-after current-gesture release?) #f #f)]))

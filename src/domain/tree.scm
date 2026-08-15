@@ -16,15 +16,6 @@
 (define entry-id file-tree-entry-value-id)
 (define entry-kind file-tree-entry-value-kind)
 
-(define (valid-kind? kind)
-  (and
-    (member
-      kind
-      '(directory unreadable-directory file file-link
-        directory-link
-        broken-link))
-    #t))
-
 (define (file-kind? kind)
   (and (member kind '(file file-link)) #t))
 
@@ -41,10 +32,7 @@
     (not (path.root-id? (entry-id entry)))
     (expandable-kind? (entry-kind entry))))
 
-(define (file-tree-entry id kind)
-  (unless (and (path.valid-id? id) (valid-kind? kind))
-    (error "invalid File tree entry"))
-  (file-tree-entry-value id kind))
+(define file-tree-entry file-tree-entry-value)
 
 (define (entry-rank entry final?)
   (if

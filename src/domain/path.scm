@@ -1,35 +1,12 @@
-(provide root-id root-id? valid-id? child-id parent-id ancestor-ids depth id-inside?
+(provide root-id root-id? child-id parent-id ancestor-ids depth id-inside?
   basename
   path-for-id
-  id-for-path
-  path-inside?)
+  id-for-path)
 
 (define root-id "")
 
 (define (root-id? id)
   (and (string? id) (string=? id root-id)))
-
-(define (contains-null? text)
-  (string-contains? text "\0"))
-
-(define (valid-segment? segment)
-  (and
-    (> (string-length segment) 0)
-    (not (string=? segment "."))
-    (not (string=? segment ".."))))
-
-(define (valid-id? id)
-  (and
-    (string? id)
-    (not (contains-null? id))
-    (or
-      (root-id? id)
-      (let loop ([segments (split-many id "/")])
-        (or
-          (null? segments)
-          (and
-            (valid-segment? (car segments))
-            (loop (cdr segments))))))))
 
 (define (child-id parent name)
   (if (root-id? parent) name (string-append parent "/" name)))
@@ -82,12 +59,3 @@
         (string-length prefix)
         (string-length absolute-path))]
     [else #f]))
-
-(define (path-inside? directory absolute-path)
-  (define prefix
-    (if (string=? directory "/")
-      directory
-      (string-append directory "/")))
-  (and
-    (> (string-length absolute-path) (string-length prefix))
-    (starts-with? absolute-path prefix)))

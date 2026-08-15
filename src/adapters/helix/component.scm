@@ -10,14 +10,11 @@
 (define *clip-side* #f)
 (define *clip-width* #f)
 
-(define (set-clip! width)
-  (if (equal? *clip-side* 'left)
-    (set-editor-clip-left! width)
-    (set-editor-clip-right! width)))
-
 (define (apply-clip! width)
   (unless (equal? width *clip-width*)
-    (set-clip! width)
+    (if (equal? *clip-side* 'left)
+      (set-editor-clip-left! width)
+      (set-editor-clip-right! width))
     (set! *clip-width* width)))
 
 (define (install! side render! handle-event!)

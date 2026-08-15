@@ -104,13 +104,7 @@
          #:geometry
          [geometry-value (model-value-geometry model)]
          #:width
-         [width-value (model-value-width model)]
-         #:side
-         [side-value (model-value-side model)]
-         #:icons
-         [icons-value (model-value-icons? model)]
-         #:guides
-         [guides-value (model-value-guides? model)])
+         [width-value (model-value-width model)])
   (model-value
     root-value
     file-tree
@@ -122,9 +116,9 @@
     anchor-value
     geometry-value
     width-value
-    side-value
-    icons-value
-    guides-value))
+    (model-value-side model)
+    (model-value-icons? model)
+    (model-value-guides? model)))
 
 (define (without-focus model)
   (copy-model model #:cursor #f))
@@ -197,7 +191,7 @@
         (reverse (take old-entries old-index))
         new-ids))))
 
-(define (reconciled-anchor old-model new-model new-entries)
+(define (reconciled-anchor old-model new-entries)
   (define old-anchor (model-value-anchor old-model))
   (cond
     [(and old-anchor (tree.find new-entries old-anchor))
@@ -251,7 +245,7 @@
     (if
       changed-root?
       path.root-id
-      (reconciled-anchor model base base-entries))))
+      (reconciled-anchor model base-entries))))
 
 (define (activatable-active-id model)
   (define active-id (model-value-active-id model))
@@ -309,12 +303,6 @@
     (update-result model #f)
     (update-result (copy-model model #:unsaved ids) #f)))
 
-(define (without-path paths removed-path)
-  (filter
-    (lambda (candidate)
-      (not (equal? candidate removed-path)))
-    paths))
-
 (define (save-started model root-value id)
   (if
     (not (equal? root-value (model-value-root model)))
@@ -323,7 +311,9 @@
       (copy-model
         model
         #:unsaved
-        (without-path (model-value-unsaved-ids model) id)))))
+        (filter
+          (lambda (candidate) (not (equal? candidate id)))
+          (model-value-unsaved-ids model))))))
 
 (define (install-geometry model geometry-value)
   (if
@@ -448,27 +438,11 @@
     (collapse-directory model entry)
     (expand-directory model entry)))
 
-(define (expandable-entry? entry)
-  (and entry (tree.expandable? entry)))
-
-(define (directory-action model entry action)
-  (if
-    (not (expandable-entry? entry))
-    (update-result model #f)
-    (cond
-      [(equal? action 'expand)
-        (expand-directory model entry)]
-      [(equal? action 'collapse)
-        (collapse-directory model entry)]
-      [(equal? action 'toggle)
-        (toggle-directory model entry)]
-      [else (error "invalid Cursor expansion action")])))
-
 (define (activate-entry model entry mode)
   (cond
     [(not entry)
       (update-result model #f)]
-    [(expandable-entry? entry)
+    [(tree.expandable? entry)
       (toggle-directory model entry)]
     [(tree.file-kind? (tree.entry-kind entry))
       (update-result
@@ -482,10 +456,15 @@
 
 (define (cursor-expansion-requested model action)
   (define revealed (reveal-cursor model))
-  (directory-action
-    revealed
-    (entry-for-id revealed (model-value-cursor revealed))
-    action))
+  (define entry
+    (entry-for-id revealed (model-value-cursor revealed)))
+  (if
+    (not (and entry (tree.expandable? entry)))
+    (update-result revealed #f)
+    (cond
+      [(equal? action 'expand) (expand-directory revealed entry)]
+      [(equal? action 'collapse) (collapse-directory revealed entry)]
+      [else (error "invalid Cursor expansion action")])))
 
 (define (cursor-open-requested model mode)
   (define revealed (reveal-cursor model))
@@ -538,14 +517,12 @@
             (tree.expandable-kind? (tree.entry-kind entry)))))]
     [else (error "invalid Cursor mutation action")]))
 
-(define (host-width-limit model)
-  (define current-geometry (model-value-geometry model))
-  (and
-    current-geometry
-    (- (layout.geometry-width current-geometry) 1)))
-
 (define (resize-to-requested model requested-width)
-  (define host-limit (host-width-limit model))
+  (define current-geometry (model-value-geometry model))
+  (define host-limit
+    (and
+      current-geometry
+      (- (layout.geometry-width current-geometry) 1)))
   (define upper
     (if
       host-limit
