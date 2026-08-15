@@ -5,7 +5,7 @@
 (require (prefix-in layout. "../domain/layout.scm"))
 (require (prefix-in model. "../domain/model.scm"))
 (require (prefix-in path. "../domain/path.scm"))
-(require (prefix-in line. "../presentation/line.scm"))
+(require (prefix-in render. "helix/render.scm"))
 (require (prefix-in scanner. "scanner.scm"))
 (require (prefix-in git. "git.scm"))
 (require (prefix-in host. "helix/host.scm"))
@@ -289,7 +289,7 @@
   (if current-layout
     (begin
       (component.apply-clip! (layout.width current-layout))
-      (line.draw!
+      (render.draw!
         frame
         current-layout
         (model.row-facts model-at-render)

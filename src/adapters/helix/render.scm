@@ -1,8 +1,8 @@
 (require "helix/components.scm")
-(require (prefix-in row. "../domain/row.scm"))
-(require (prefix-in tree. "../domain/tree.scm"))
-(require (prefix-in path. "../domain/path.scm"))
-(require (prefix-in layout. "../domain/layout.scm"))
+(require (prefix-in row. "../../domain/row.scm"))
+(require (prefix-in tree. "../../domain/tree.scm"))
+(require (prefix-in path. "../../domain/path.scm"))
+(require (prefix-in layout. "../../domain/layout.scm"))
 (require (prefix-in devicons. "devicons/devicons.scm"))
 
 (provide draw!)
