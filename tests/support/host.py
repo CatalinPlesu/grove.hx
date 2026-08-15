@@ -6,6 +6,7 @@ import os
 import shlex
 import shutil
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from libtmux.pane import Pane
 from libtmux.server import Server
 from libtmux.session import Session
 
+from tests.support.screen import IncompleteScreen, Screen
 from tests.support.workspace import Workspace
 
 REPOSITORY = Path(__file__).parents[2]
@@ -110,9 +112,36 @@ class Helix:
     def command(self, command: str) -> None:
         if not command.startswith(":"):
             raise ValueError(f"Helix command must start with ':': {command!r}")
+        self._wait_until(
+            "Helix did not enter Normal mode before a command",
+            lambda: self._editor_mode() == "Normal",
+        )
         self.type(":")
+        self._wait_until(
+            "Helix did not open the command line",
+            lambda: bool(
+                (lines := tuple(self.pane.capture_pane())) and lines[-1].startswith(":")
+            ),
+        )
         self.paste(command[1:])
         self.pane.enter()
+
+    def _editor_mode(self) -> str | None:
+        try:
+            return Screen.parse(
+                self.pane.capture_pane(escape_sequences=True)
+            ).editor_mode
+        except IncompleteScreen:
+            return None
+
+    @staticmethod
+    def _wait_until(description: str, ready: Callable[[], bool]) -> None:
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            if ready():
+                return
+            time.sleep(0.05)
+        raise AssertionError(description)
 
     @property
     def closed_documents(self) -> tuple[str, ...]:
