@@ -258,6 +258,18 @@
       (tree.entry-id
         (layout.slot-entry (car focused-cursor-slots))))))
 
+(define open-command
+  (model.update-result-command
+    (model.cursor-open-requested focused-model 'normal)))
+
+(check
+  "file activation returns one tagged Model command"
+  (and
+    (equal? 'open-file (model.model-command-kind open-command))
+    (equal?
+      (list ROOT nested-target 'normal)
+      (model.model-command-arguments open-command))))
+
 (define (ordinary-slot? current-layout id)
   (any?
     (lambda (slot)

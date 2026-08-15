@@ -66,21 +66,24 @@
   (schedule-next!))
 
 (define (execute-command! command)
+  (define kind (model.model-command-kind command))
+  (define arguments (model.model-command-arguments command))
   (cond
-    [(model.refresh-command? command)
+    [(equal? kind 'refresh)
       (schedule-refresh!)]
-    [(model.open-file-command? command)
-      (host.open-file!
-        (path.path-for-id
-          (model.open-file-command-root command)
-          (model.open-file-command-id command))
-        (model.open-file-command-mode command))]
-    [(model.create-prompt-command? command)
-      (files.prompt-create! command dispatch! refresh-now!)]
-    [(model.rename-prompt-command? command)
-      (files.prompt-rename! command refresh-now!)]
-    [(model.delete-confirmation-command? command)
-      (files.confirm-delete! command refresh-now!)]
+    [(equal? kind 'open-file)
+      (apply
+        (lambda (root id mode)
+          (host.open-file! (path.path-for-id root id) mode))
+        arguments)]
+    [(equal? kind 'create)
+      (apply
+        files.prompt-create!
+        (append arguments (list dispatch! refresh-now!)))]
+    [(equal? kind 'rename)
+      (apply files.prompt-rename! (append arguments (list refresh-now!)))]
+    [(equal? kind 'delete)
+      (apply files.confirm-delete! (append arguments (list refresh-now!)))]
     [else (error "unknown Model command")]))
 
 (define (install-update! update-result)

@@ -191,10 +191,7 @@
               (delete-file! source)))
           (lambda () (close-affected! documents))))]))
 
-(define (prompt-create! command dispatch! refresh!)
-  (define kind (model.create-prompt-command-kind command))
-  (define root (model.create-prompt-command-root command))
-  (define parent-id (model.create-prompt-command-parent-id command))
+(define (prompt-create! kind root parent-id dispatch! refresh!)
   (define label
     (string-append
       (if (equal? kind 'file) "New file in " "New directory in ")
@@ -215,9 +212,7 @@
           dispatch!
           refresh!)))))
 
-(define (prompt-rename! command refresh!)
-  (define root (model.rename-prompt-command-root command))
-  (define source-id (model.rename-prompt-command-source-id command))
+(define (prompt-rename! root source-id refresh!)
   (push-component!
     (prompt
       (string-append "Rename or move " source-id " to ")
@@ -228,13 +223,7 @@
           destination-id
           refresh!)))))
 
-(define (confirm-delete! command refresh!)
-  (define root
-    (model.delete-confirmation-command-root command))
-  (define source-id
-    (model.delete-confirmation-command-source-id command))
-  (define recursive?
-    (model.delete-confirmation-command-recursive? command))
+(define (confirm-delete! root source-id recursive? refresh!)
   (define message
     (string-append
       "Permanently delete "

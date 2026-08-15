@@ -30,22 +30,8 @@
   resize-to-requested
   update-result-model
   update-result-command
-  refresh-command?
-  open-file-command?
-  open-file-command-root
-  open-file-command-id
-  open-file-command-mode
-  create-prompt-command?
-  create-prompt-command-kind
-  create-prompt-command-root
-  create-prompt-command-parent-id
-  rename-prompt-command?
-  rename-prompt-command-root
-  rename-prompt-command-source-id
-  delete-confirmation-command?
-  delete-confirmation-command-root
-  delete-confirmation-command-source-id
-  delete-confirmation-command-recursive?)
+  model-command-kind
+  model-command-arguments)
 
 (struct model-value
   (root tree git-status unsaved-ids active-id
@@ -60,13 +46,11 @@
 
 (struct observation-snapshot (root tree git-status active-id))
 
-(struct refresh-command ())
-(struct open-file-command (root id mode))
-(struct create-prompt-command (kind root parent-id))
-(struct rename-prompt-command (root source-id))
-(struct delete-confirmation-command
-  (root source-id recursive?))
+(struct model-command (kind arguments))
 (struct update-result (model command))
+
+(define (command kind . arguments)
+  (model-command kind arguments))
 
 (define root model-value-root)
 (define icons? model-value-icons?)
@@ -152,7 +136,7 @@
   (resolved-layout-for model (visible-entries model)))
 
 (define (request-refresh model)
-  (update-result model (refresh-command)))
+  (update-result model (command 'refresh)))
 
 (define (init side-value width-value icons-value guides-value)
   (model-value
@@ -447,7 +431,8 @@
     [(tree.file-kind? (tree.entry-kind entry))
       (update-result
         (without-focus model)
-        (open-file-command
+        (command
+          'open-file
           (model-value-root model)
           (tree.entry-id entry)
           mode))]
@@ -492,7 +477,8 @@
     [(member action '(file directory))
       (update-result
         revealed
-        (create-prompt-command
+        (command
+          'create
           action
           (model-value-root model)
           (mutation-parent-id entry)))]
@@ -502,7 +488,8 @@
         (update-result model #f)
         (update-result
           revealed
-          (rename-prompt-command
+          (command
+            'rename
             (model-value-root model)
             source-id)))]
     [(equal? action 'delete)
@@ -511,7 +498,8 @@
         (update-result model #f)
         (update-result
           revealed
-          (delete-confirmation-command
+          (command
+            'delete
             (model-value-root model)
             source-id
             (tree.expandable-kind? (tree.entry-kind entry)))))]
