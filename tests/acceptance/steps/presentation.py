@@ -1,14 +1,16 @@
+from pathlib import PurePath
+
 from pytest_bdd import parsers, then
 
-from tests.support.host import Helix
-from tests.support.screen import Row, Screen
-from tests.support.waiting import eventually
+from tests.support.grove import GroveDriver, GroveFrame, VisibleRow
+
+from .rows import scenario_path
 
 
 @then(parsers.parse('Grove is Docked on the "{side}" at width {width:d}'))
-def grove_is_docked(helix: Helix, side: str, width: int) -> None:
-    def mismatch(screen: Screen) -> str | None:
-        actual = screen.pane_width(side, helix.width)
+def grove_is_docked(grove: GroveDriver, side: str, width: int) -> None:
+    def mismatch(frame: GroveFrame) -> str | None:
+        actual = frame.pane.width if frame.pane and frame.pane.side == side else None
         if actual == width:
             return None
         return (
@@ -16,27 +18,25 @@ def grove_is_docked(helix: Helix, side: str, width: int) -> None:
             f"observed width {actual}"
         )
 
-    eventually(helix, mismatch)
+    grove.wait(mismatch)
 
 
 @then(parsers.parse("Grove has width {width:d}"))
-def grove_has_width(helix: Helix, width: int) -> None:
-    eventually(
-        helix,
-        lambda screen: (
+def grove_has_width(grove: GroveDriver, width: int) -> None:
+    grove.wait(
+        lambda frame: (
             None
-            if screen.pane_width(screen.side or "", helix.width) == width
+            if frame.pane is not None and frame.pane.width == width
             else f"Grove did not retain width {width}"
         ),
     )
 
 
 @then("Grove yields the whole terminal to Helix")
-def grove_yields_to_helix(helix: Helix) -> None:
-    eventually(
-        helix,
-        lambda screen: (
-            None if screen.rail is None else "Grove did not yield the terminal"
+def grove_yields_to_helix(grove: GroveDriver) -> None:
+    grove.wait(
+        lambda frame: (
+            None if frame.pane is None else "Grove did not yield the terminal"
         ),
     )
 
@@ -52,11 +52,11 @@ _FOREGROUNDS = {
 
 
 def _has_background(
-    row: Row,
+    row: VisibleRow,
     markers: tuple[str, ...],
     expected: tuple[int, int, int],
 ) -> bool:
-    return all(row.background_before(marker) == expected for marker in markers)
+    return all(row.background_at(marker) == expected for marker in markers)
 
 
 @then(
@@ -66,13 +66,12 @@ def _has_background(
         r"foreground$"
     )
 )
-def entry_uses_foreground(helix: Helix, name: str, foreground: str) -> None:
-    eventually(
-        helix,
-        lambda screen: (
+def entry_uses_foreground(grove: GroveDriver, name: str, foreground: str) -> None:
+    grove.wait(
+        lambda frame: (
             None
-            if (row := screen.row(name)) is not None
-            and row.foreground_before(name) == _FOREGROUNDS[foreground]
+            if (row := frame.row(scenario_path(name))) is not None
+            and row.foreground_at(row.label) == _FOREGROUNDS[foreground]
             else f'"{name}" did not use the {foreground} foreground'
         ),
     )
@@ -84,29 +83,29 @@ def entry_uses_foreground(helix: Helix, name: str, foreground: str) -> None:
         r"icon and error foreground$"
     )
 )
-def failed_entry_uses_error_presentation(helix: Helix, name: str, kind: str) -> None:
+def failed_entry_uses_error_presentation(
+    grove: GroveDriver, name: str, kind: str
+) -> None:
     icon = {"unreadable-directory": "󰷌", "broken-link": "󰌺"}[kind]
-    eventually(
-        helix,
-        lambda screen: (
+    grove.wait(
+        lambda frame: (
             None
-            if (row := screen.row(name)) is not None
-            and row.foreground_before(icon) == (255, 0, 255)
-            and row.foreground_before(name) == (255, 0, 255)
+            if (row := frame.row(scenario_path(name))) is not None
+            and row.foreground_at(icon) == (255, 0, 255)
+            and row.foreground_at(row.label) == (255, 0, 255)
             else f'"{name}" did not use the error foreground'
         ),
     )
 
 
 @then(parsers.parse('"{name}" uses the "{variant}" file icon variant'))
-def file_icon_uses_variant(helix: Helix, name: str, variant: str) -> None:
+def file_icon_uses_variant(grove: GroveDriver, name: str, variant: str) -> None:
     color = {"dark": (137, 224, 81), "light": (68, 112, 40)}[variant]
-    eventually(
-        helix,
-        lambda screen: (
+    grove.wait(
+        lambda frame: (
             None
-            if (row := screen.row(name)) is not None
-            and row.foreground_before("󰈙") == color
+            if (row := frame.row(scenario_path(name))) is not None
+            and row.foreground_at("󰈙") == color
             else f"Grove did not use the {variant} file-icon variant"
         ),
     )
@@ -114,29 +113,31 @@ def file_icon_uses_variant(helix: Helix, name: str, variant: str) -> None:
 
 @then(parsers.re(r"^these rows carry (?P<amount>one|no) Unsaved mark$"))
 def rows_carry_unsaved_mark(
-    helix: Helix,
+    grove: GroveDriver,
     datatable: list[list[str]],
     amount: str,
 ) -> None:
-    expected = "+" if amount == "one" else None
+    expected = amount == "one"
     names = [row[0] for row in datatable[1:]]
 
-    def mismatch(screen: Screen) -> str | None:
+    def mismatch(frame: GroveFrame) -> str | None:
         for name in names:
             row = (
-                screen.workspace_root if name == "Workspace root" else screen.row(name)
+                frame.pane.workspace_root
+                if name == "Workspace root" and frame.pane is not None
+                else frame.row(scenario_path(name))
             )
             if row is None:
                 return f'Grove did not show "{name}"'
-            if row.mark != expected:
+            if row.has_unsaved_mark != expected:
                 return (
                     f'"{name}" carried an Unsaved mark'
-                    if expected is None
+                    if not expected
                     else f'"{name}" did not carry an Unsaved mark'
                 )
         return None
 
-    eventually(helix, mismatch)
+    grove.wait(mismatch)
 
 
 @then(
@@ -145,60 +146,67 @@ def rows_carry_unsaved_mark(
         r"(?P<mark>without an Unsaved mark|with its Unsaved mark visible)$"
     )
 )
-def long_filename_clips(helix: Helix, name: str, mark: str) -> None:
+def long_filename_clips(grove: GroveDriver, name: str, mark: str) -> None:
     suffix = {
         "without an Unsaved mark": "…",
         "with its Unsaved mark visible": "…+",
     }[mark]
-    eventually(
-        helix,
-        lambda screen: (
+    grove.wait(
+        lambda frame: (
             None
-            if (row := screen.row(name)) is not None and row.text.endswith(suffix)
+            if (row := frame.row(scenario_path(name))) is not None
+            and row.text.endswith(suffix)
             else f'"{name}" did not end with {suffix!r}'
         ),
     )
 
 
 @then(parsers.parse('ignored status dims the "{name}" label only'))
-def ignored_status_dims_label(helix: Helix, name: str) -> None:
-    def mismatch(screen: Screen) -> str | None:
-        ignored = screen.row(name)
-        root = screen.workspace_root
+def ignored_status_dims_label(grove: GroveDriver, name: str) -> None:
+    def mismatch(frame: GroveFrame) -> str | None:
+        ignored = frame.row(scenario_path(name))
+        root = frame.pane.workspace_root if frame.pane else None
         if ignored is None:
             return f'Grove did not show ignored row "{name}"'
         if root is None:
             return "Grove did not show the Workspace root"
-        if not ignored.is_dimmed_before(name):
+        if not ignored.is_dimmed_at(ignored.label):
             return f'Ignored label "{name}" was not dimmed'
         icon = "" if "" in ignored.text else "󰈙"
-        if ignored.is_dimmed_before(icon) or root.is_dimmed_before(root.label):
+        if ignored.is_dimmed_at(icon) or root.is_dimmed_at(root.label):
             return "Ignored dimming leaked beyond the item label"
         return None
 
-    eventually(helix, mismatch)
+    grove.wait(mismatch)
 
 
-@then("the Workspace icon, file icon, and Unsaved marks keep their foregrounds")
-def icons_and_unsaved_marks_keep_foregrounds(helix: Helix) -> None:
-    def mismatch(screen: Screen) -> str | None:
-        root = screen.workspace_root
-        row = screen.row("modified.txt")
+@then(
+    parsers.parse(
+        'the Workspace icon, "{name}" file icon, and their Unsaved marks keep their foregrounds'
+    )
+)
+def icons_and_unsaved_marks_keep_foregrounds(
+    grove: GroveDriver,
+    name: str,
+) -> None:
+    def mismatch(frame: GroveFrame) -> str | None:
+        root = frame.pane.workspace_root if frame.pane else None
+        row = frame.row(scenario_path(name))
         if root is None:
             return "Grove did not show the Workspace root"
         if row is None:
-            return 'Grove did not show status row "modified.txt"'
-        if root.foreground_before("󰙅") != (216, 216, 216):
+            return f'Grove did not show status row "{name}"'
+        if root.foreground_at("󰙅") != (216, 216, 216):
             return "Git status recolored the Workspace icon"
-        if row.foreground_before("󰈙") != (137, 224, 81):
-            return 'File icon for "modified.txt" lost its palette foreground'
-        if root.foreground_before("+") != (0, 255, 255):
+        if row.foreground_at("󰈙") != (137, 224, 81):
+            return f'File icon for "{name}" lost its palette foreground'
+        if root.foreground_at("+") != (0, 255, 255):
             return "Git status recolored the Workspace Unsaved mark"
-        if row.foreground_before("+") != (0, 255, 255):
-            return 'Git status recolored the "modified.txt" Unsaved mark'
+        if row.foreground_at("+") != (0, 255, 255):
+            return f'Git status recolored the "{name}" Unsaved mark'
         return None
 
-    eventually(helix, mismatch)
+    grove.wait(mismatch)
 
 
 @then(
@@ -208,15 +216,14 @@ def icons_and_unsaved_marks_keep_foregrounds(helix: Helix) -> None:
     )
 )
 def selected_background_spans_row(
-    helix: Helix,
+    grove: GroveDriver,
     name: str,
 ) -> None:
-    markers = ("󰈙", name, "+")
-    eventually(
-        helix,
-        lambda screen: (
+    markers = ("󰈙", PurePath(name).name, "+")
+    grove.wait(
+        lambda frame: (
             None
-            if (row := screen.row(name)) is not None
+            if (row := frame.row(scenario_path(name))) is not None
             and _has_background(row, markers, (48, 48, 48))
             else f'Cursor background did not span the whole "{name}" row'
         ),
@@ -230,45 +237,44 @@ def selected_background_spans_row(
     )
 )
 def ignored_dimming_composes_with_selected_background(
-    helix: Helix,
+    grove: GroveDriver,
     name: str,
 ) -> None:
-    def mismatch(screen: Screen) -> str | None:
-        row = screen.row(name)
+    def mismatch(frame: GroveFrame) -> str | None:
+        row = frame.row(scenario_path(name))
         if row is None:
             return f'Grove did not show ignored row "{name}"'
         if "󰈙" not in row.text:
             return f'Ignored row "{name}" did not show its file icon'
         if "+" not in row.text:
             return f'Ignored row "{name}" did not show its Unsaved mark'
-        if not row.is_dimmed_before(name):
+        if not row.is_dimmed_at(row.label):
             return "Ignored item label was not dimmed"
-        if row.is_dimmed_before("󰈙") or row.is_dimmed_before("+"):
+        if row.is_dimmed_at("󰈙") or row.is_dimmed_at("+"):
             return "Ignored dimming leaked to the icon or Unsaved mark"
         if not _has_background(
             row,
-            ("󰈙", name, "+"),
+            ("󰈙", row.label, "+"),
             (48, 48, 48),
         ):
             return "Selected background did not span the ignored row"
         return None
 
-    eventually(helix, mismatch)
+    grove.wait(mismatch)
 
 
 @then(parsers.parse('the Pinned "{name}" row keeps ordinary status layers'))
-def pinned_row_keeps_ordinary_status_layers(helix: Helix, name: str) -> None:
-    eventually(
-        helix,
-        lambda screen: (
+def pinned_row_keeps_ordinary_status_layers(grove: GroveDriver, name: str) -> None:
+    grove.wait(
+        lambda frame: (
             None
-            if (row := screen.row(name)) is not None
+            if (row := frame.row(scenario_path(name))) is not None
             and "▾" in row.text
             and "" in row.text
             and "+" in row.text
-            and row.foreground_before(name) == (255, 255, 0)
-            and row.foreground_before("+") == (0, 255, 255)
-            and _has_background(row, ("", name, "+"), (48, 48, 48))
+            and row.foreground_at(row.label) == (255, 255, 0)
+            and row.foreground_at("+") == (0, 255, 255)
+            and _has_background(row, ("", row.label, "+"), (48, 48, 48))
             else f'Pinned row "{name}" lost ordinary status layers'
         ),
     )
@@ -280,20 +286,19 @@ def pinned_row_keeps_ordinary_status_layers(helix: Helix, name: str) -> None:
     )
 )
 def pinned_background_composes_with_ignored_dimming(
-    helix: Helix,
+    grove: GroveDriver,
     name: str,
 ) -> None:
-    eventually(
-        helix,
-        lambda screen: (
+    grove.wait(
+        lambda frame: (
             None
-            if (row := screen.row(name)) is not None
+            if (row := frame.row(scenario_path(name))) is not None
             and "▾" in row.text
             and "" in row.text
-            and row.is_dimmed_before(name)
-            and not row.is_dimmed_before("")
-            and not row.is_dimmed_before("▾")
-            and _has_background(row, ("▾", "", name), (32, 32, 32))
+            and row.is_dimmed_at(row.label)
+            and not row.is_dimmed_at("")
+            and not row.is_dimmed_at("▾")
+            and _has_background(row, ("▾", "", row.label), (32, 32, 32))
             else f'Pinned row "{name}" lost its background or ignored dimming'
         ),
     )

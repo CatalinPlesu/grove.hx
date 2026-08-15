@@ -22,30 +22,27 @@ Feature: Navigate and resize with the Rail
         | file | anchor.txt      |       |
         | file | page-{:02d}.txt | 40    |
       And "anchor.txt" is Active
+      When Helix starts with Grove in that Workspace
 
     Scenario: Page by one visible height from the Rail track
-      When Helix starts with Grove in that Workspace
-      And the terminal height becomes 10 rows
+      When the terminal height becomes 10 rows
       And the Rail track below the thumb is clicked
       Then Pane row 2 is "page-08.txt"
       When the Rail track above the thumb is clicked
       Then Pane row 2 is "anchor.txt"
 
     Scenario: Keep the chosen Rail axis until release
-      When Helix starts with Grove in that Workspace
-      And the Rail drag moves horizontally toward width 30 and then vertically
+      When the Rail drag moves horizontally toward width 30 and then vertically
       Then Grove has width 30
       And Pane row 2 is "anchor.txt"
 
     Scenario: Keep the vertical Rail axis until release
-      When Helix starts with Grove in that Workspace
-      And the Rail drag moves vertically and then horizontally
+      When the Rail drag moves vertically and then horizontally
       Then Pane row 2 is not "page-00.txt"
       And Grove has width 32
 
     Scenario: Clamp vertical thumb dragging at the File tree end
-      When Helix starts with Grove in that Workspace
-      And the Rail thumb is pressed
+      When the Rail thumb is pressed
       And the Rail thumb is dragged to the bottom
       Then the File tree ends with "page-39.txt"
       When the Rail thumb is pressed
@@ -53,37 +50,33 @@ Feature: Navigate and resize with the Rail
       Then Pane row 2 is "anchor.txt"
 
     Scenario: Continue thumb dragging after the File tree and terminal change
-      When Helix starts with Grove in that Workspace
-      And the Rail thumb is pressed
+      When the Rail thumb is pressed
       And "aardvark.txt" is created
       And "extra-1.txt" is created
       And "extra-2.txt" is created
-      And the File tree shows "extra-2.txt"
-      And "page-05.txt" is deleted
+      Then the File tree shows "extra-2.txt"
+      When "page-05.txt" is deleted
       Then the File tree does not show "page-05.txt"
       When the terminal height becomes 25 rows
       And the Rail thumb is dragged down
       Then Pane row 2 is not "page-00.txt"
 
     Scenario: Let a key cancel a Rail drag
-      When Helix starts with Grove in that Workspace
-      And the Rail thumb is pressed
-      And Grove receives Helix's file-picker chord for "page-10.txt"
+      When the Rail thumb is pressed
+      And Grove receives Helix's file-picker chord and searches for "page-10"
       And the pointer moves horizontally
       Then Helix shows the "page-10.txt" document
       And Grove has width 32
 
     Scenario: Let Wheel scrolling cancel a Rail drag
-      When Helix starts with Grove in that Workspace
-      And the Rail thumb is pressed
+      When the Rail thumb is pressed
       And the Wheel scrolls down over Grove
       And the pointer moves horizontally
       Then Pane row 2 is "page-01.txt"
       And Grove has width 32
 
     Scenario: Let a new press cancel a Rail drag
-      When Helix starts with Grove in that Workspace
-      And the Rail thumb is pressed
+      When the Rail thumb is pressed
       And "page-10.txt" is pressed
       And the pointer moves horizontally
       Then Helix shows the "page-10.txt" document
@@ -102,11 +95,11 @@ Feature: Navigate and resize with the Rail
       And Grove is focused
       And the terminal height becomes 6 rows
       And the Wheel scrolls down over Grove
-      Then the Ancestor stack is "workspace > alpha > beta" above File tree row "sibling"
+      Then the Ancestor stack is "Workspace root > alpha > alpha/beta" above File tree row "alpha/beta/sibling"
       When the Rail thumb height is noted
       And the Rail thumb is pressed
       And the Rail thumb is dragged to the bottom
-      Then the Ancestor stack is "workspace" above File tree row "tail-05.txt"
+      Then the Ancestor stack is "Workspace root" above File tree row "tail-05.txt"
       And Pane row 6 is "tail-09.txt"
       And the Rail thumb keeps its height
 
@@ -123,7 +116,7 @@ Feature: Navigate and resize with the Rail
       When Helix starts with Grove in Workspace "first"
       And the Rail thumb is pressed
       And Helix runs "cd" for Workspace "second"
-      And the File tree root is "second"
-      And the pointer moves horizontally
+      Then the File tree root is "second"
+      When the pointer moves horizontally
       Then the File tree root is "second"
       And Grove has width 32

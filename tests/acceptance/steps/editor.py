@@ -3,41 +3,33 @@ from pathlib import Path
 
 from pytest_bdd import parsers, then, when
 
-from tests.support.host import Helix
-from tests.support.screen import Screen
-from tests.support.waiting import (
-    consistently,
-    eventually,
-    eventually_bottom_line_contains,
-)
-from tests.support.waiting import focus_grove as wait_for_focus
-from tests.support.workspace import Workspace
+from tests.support.grove import GroveDriver
+from tests.support.workspace import WorkspaceFixture
+
+from .rows import scenario_path
 
 
 @when(parsers.parse('the editor receives "{key}" while Grove is unfocused'))
-def editor_receives(helix: Helix, key: str) -> None:
-    helix.type(key)
+def editor_receives(grove: GroveDriver, key: str) -> None:
+    grove.helix.terminal.write(key)
 
 
-@when(parsers.parse('Grove receives Helix\'s file-picker chord for "{name}"'))
-def grove_receives_file_picker_chord(helix: Helix, name: str) -> None:
-    helix.key("Space")
-    helix.type("f")
-    helix.type(name.removesuffix(".txt"), enter=True)
-    eventually(
-        helix,
-        lambda screen: (
-            None
-            if screen.document is not None and Path(screen.document).name == name
-            else f'Helix did not show document "{name}"'
-        ),
+@when(
+    parsers.parse(
+        'Grove receives Helix\'s file-picker chord and searches for "{query}"'
     )
+)
+def grove_receives_file_picker_chord(grove: GroveDriver, query: str) -> None:
+    grove.helix.terminal.key("Space")
+    grove.helix.terminal.write("f")
+    grove.helix.terminal.write(query)
+    grove.helix.terminal.key("Enter")
 
 
 @when(parsers.parse('Helix changes the Active file to "{name}"'))
 def helix_changes_active_file(
     tmp_path: Path,
-    workspace: Workspace,
+    workspace: WorkspaceFixture,
     name: str,
 ) -> None:
     workspace.document_path(name)
@@ -51,26 +43,24 @@ def helix_changes_active_file(
     )
 )
 def editor_moves_and_aligns_line(
-    helix: Helix,
-    workspace: Workspace,
+    grove: GroveDriver,
+    workspace: WorkspaceFixture,
     line_number: int,
     name: str,
     first_visible_line_number: int,
 ) -> None:
-    eventually(
-        helix,
-        lambda screen: (
+    grove.wait(
+        lambda frame: (
             None
-            if screen.editor_view(name) is not None
+            if frame.helix.view(name) is not None
             else f'Helix did not show "{name}" before navigation'
         ),
     )
-    helix.type(f"{line_number}Gzt")
-    eventually(
-        helix,
-        lambda screen: (
+    grove.helix.terminal.write(f"{line_number}Gzt")
+    grove.wait(
+        lambda frame: (
             None
-            if (view := screen.editor_view(name)) is not None
+            if (view := frame.helix.view(name)) is not None
             and view.first_visible_line is not None
             and workspace.numbered_line(name, first_visible_line_number)
             in view.first_visible_line
@@ -81,185 +71,133 @@ def editor_moves_and_aligns_line(
     )
 
 
-@when(parsers.parse('the editor inserts "{text}" without saving'))
-def editor_inserts_without_saving(helix: Helix, text: str) -> None:
-    _insert(helix, text)
+@when(
+    parsers.parse(
+        'the editor inserts "{text}" without saving and returns to Normal mode'
+    )
+)
+def editor_inserts_without_saving(grove: GroveDriver, text: str) -> None:
+    _insert(grove, text)
 
 
 @when(parsers.parse('the editor pastes "{text}"'))
-def editor_pastes(helix: Helix, text: str) -> None:
-    helix.paste(text)
+def editor_pastes(grove: GroveDriver, text: str) -> None:
+    grove.helix.terminal.paste(text)
 
 
 @when(parsers.parse('the editor inserts "{text}" and saves'))
-def editor_inserts_and_saves(helix: Helix, text: str) -> None:
-    _insert(helix, text)
-    helix.command(":write")
+def editor_inserts_and_saves(grove: GroveDriver, text: str) -> None:
+    _insert(grove, text)
+    grove.helix.command("write")
 
 
-def _insert(helix: Helix, text: str) -> None:
-    helix.type("i")
-    helix.type(text)
-    eventually(
-        helix,
-        lambda screen: (
-            None
-            if screen.editor_mode == "Insert"
-            else "Helix did not enter Insert mode"
+def _insert(grove: GroveDriver, text: str) -> None:
+    grove.helix.terminal.write("i")
+    grove.helix.terminal.write(text)
+    grove.wait(
+        lambda frame: (
+            None if frame.helix.mode == "Insert" else "Helix did not enter Insert mode"
         ),
     )
-    helix.key("Escape")
-    eventually(
-        helix,
-        lambda screen: (
-            None
-            if screen.editor_mode == "Normal"
-            else "Helix did not leave Insert mode"
+    grove.helix.terminal.key("Escape")
+    grove.wait(
+        lambda frame: (
+            None if frame.helix.mode == "Normal" else "Helix did not leave Insert mode"
         ),
     )
 
 
 @when(parsers.parse("the terminal width becomes {width:d} columns"))
-def terminal_width_becomes(helix: Helix, width: int) -> None:
-    helix.resize(width=width)
-    eventually(
-        helix,
-        lambda _screen: (
+def terminal_width_becomes(grove: GroveDriver, width: int) -> None:
+    grove.helix.terminal.resize(width=width)
+    grove.wait(
+        lambda frame: (
             None
-            if helix.width == width
+            if frame.helix.terminal.width == width
             else f"Terminal did not resize to {width} columns"
         ),
     )
 
 
 @when(parsers.parse("the terminal height becomes {height:d} rows"))
-def terminal_height_becomes(helix: Helix, height: int) -> None:
-    helix.resize(height=height)
-    eventually(
-        helix,
-        lambda screen: (
+def terminal_height_becomes(grove: GroveDriver, height: int) -> None:
+    grove.helix.terminal.resize(height=height)
+    grove.wait(
+        lambda frame: (
             None
-            if helix.height == height and len(screen.lines) == height
+            if frame.helix.terminal.height == height == len(frame.helix.terminal.lines)
             else f"Terminal did not resize to {height} rows"
         ),
     )
 
 
 @when("Grove is focused")
-def focus_grove(helix: Helix) -> None:
-    wait_for_focus(helix)
-
-
-@then(parsers.parse('the focused frame shows "{name}" in Pane row {number:d}'))
-def focused_frame_shows_row(
-    helix: Helix,
-    name: str,
-    number: int,
-) -> None:
-    eventually(
-        helix,
-        lambda screen: (
-            None
-            if (row := screen.row(name)) is not None and row.number == number
-            else f'The focused frame did not show "{name}" in Pane row {number}'
-        ),
-    )
-
-
-@then(
-    parsers.parse(
-        '"{name}" stays focused in Pane row {number:d} through the next refresh'
-    )
-)
-def focused_row_survives_refresh(
-    helix: Helix,
-    name: str,
-    number: int,
-) -> None:
-    def mismatch(screen: Screen) -> str | None:
-        row = screen.row(name)
-        if row is not None and row.number == number and screen.grove_cursor == row:
-            return None
-        return f'Grove moved focus away from "{name}" in Pane row {number}'
-
-    consistently(helix, mismatch, duration=2.5)
+def focus_grove(grove: GroveDriver) -> None:
+    grove.focus()
 
 
 @when(parsers.parse('Grove receives "{key}"'))
-def grove_receives_key(helix: Helix, key: str) -> None:
-    helix.key(key)
+def grove_receives_key(grove: GroveDriver, key: str) -> None:
+    grove.key(key)
 
 
 @when(parsers.parse('Helix runs "{command}" for Workspace "{workspace_name}"'))
 def change_workspace(
-    helix: Helix,
-    workspaces: dict[str, Workspace],
+    grove: GroveDriver,
+    workspaces: dict[str, WorkspaceFixture],
     command: str,
     workspace_name: str,
 ) -> None:
     workspace = workspaces[workspace_name]
-    _return_to_editor(helix)
-    if command == "cd":
-        helix.change_workspace(workspace)
-    elif command == "push-directory":
-        helix.push_workspace(workspace)
-    else:
-        raise ValueError(f"Unknown Workspace command: {command!r}")
+    {
+        "cd": grove.change_workspace,
+        "push-directory": grove.push_workspace,
+        "pop-directory": grove.pop_workspace,
+    }[command](workspace)
 
 
-@when('Helix runs "pop-directory"')
-def return_to_previous_workspace(helix: Helix) -> None:
-    _return_to_editor(helix)
-    helix.pop_workspace()
-
-
-def _return_to_editor(helix: Helix) -> None:
-    helix.key("Escape")
-
-
-@when("a file outside the Workspace is opened and edited without saving")
-def edit_file_outside_workspace(helix: Helix, workspace: Workspace) -> None:
+@when("a file outside the Workspace is opened")
+def open_file_outside_workspace(
+    grove: GroveDriver, workspace: WorkspaceFixture
+) -> None:
     outside = workspace.root.parent / "outside.txt"
     outside.write_text("outside\n", encoding="utf-8")
-    helix.command(f":open {json.dumps(str(outside))}")
-    eventually(
-        helix,
-        lambda screen: (
+    grove.helix.command(f"open {json.dumps(str(outside))}")
+    grove.wait(
+        lambda frame: (
             None
-            if screen.editor_contains("outside")
+            if frame.helix.contains("outside")
             else "Helix did not open the file outside the Workspace"
         ),
     )
-    _insert(helix, "outside-")
 
 
 @then(parsers.parse("the active Editor view is in {mode} mode"))
-def editor_has_mode(helix: Helix, mode: str) -> None:
-    eventually(
-        helix,
-        lambda screen: (
-            None if screen.editor_mode == mode else f"Editor did not enter {mode} mode"
+def editor_has_mode(grove: GroveDriver, mode: str) -> None:
+    grove.wait(
+        lambda frame: (
+            None if frame.helix.mode == mode else f"Editor did not enter {mode} mode"
         ),
     )
 
 
 @then(parsers.parse('Helix shows the "{name}" document'))
-def helix_shows_document(helix: Helix, name: str) -> None:
-    eventually(
-        helix,
-        lambda screen: (
-            None if screen.document == name else f'Helix did not show document "{name}"'
+def helix_shows_document(grove: GroveDriver, name: str) -> None:
+    grove.wait(
+        lambda frame: (
+            None
+            if frame.helix.document == name
+            else f'Helix did not show document "{name}"'
         ),
     )
 
 
 @then("the editor still shows the outside file")
-def editor_still_shows_outside_file(helix: Helix) -> None:
-    eventually(
-        helix,
-        lambda screen: (
+def editor_still_shows_outside_file(grove: GroveDriver) -> None:
+    grove.wait(
+        lambda frame: (
             None
-            if screen.editor_contains("outside")
+            if frame.helix.contains("outside")
             else "Helix stopped showing the file outside the Workspace"
         ),
     )
@@ -272,17 +210,16 @@ def editor_still_shows_outside_file(helix: Helix) -> None:
     )
 )
 def editor_view_is_restored(
-    helix: Helix,
-    workspace: Workspace,
+    grove: GroveDriver,
+    workspace: WorkspaceFixture,
     name: str,
     line_number: int,
     first_visible_line_number: int,
 ) -> None:
-    eventually(
-        helix,
-        lambda screen: (
+    grove.wait(
+        lambda frame: (
             None
-            if (view := screen.editor_view(name)) is not None
+            if (view := frame.helix.view(name)) is not None
             and view.cursor == (line_number, 1)
             and view.first_visible_line is not None
             and workspace.numbered_line(name, first_visible_line_number)
@@ -293,12 +230,11 @@ def editor_view_is_restored(
 
 
 @then(parsers.parse("the editor cursor is on line {line_number:d}"))
-def editor_cursor_is_on_line(helix: Helix, line_number: int) -> None:
-    eventually(
-        helix,
-        lambda screen: (
+def editor_cursor_is_on_line(grove: GroveDriver, line_number: int) -> None:
+    grove.wait(
+        lambda frame: (
             None
-            if (view := screen.active_editor_view) is not None
+            if (view := frame.helix.active_view) is not None
             and view.cursor is not None
             and view.cursor[0] == line_number
             else f"Helix did not move the editor cursor to line {line_number}"
@@ -307,96 +243,72 @@ def editor_cursor_is_on_line(helix: Helix, line_number: int) -> None:
 
 
 @then("Helix receives the modified key")
-def helix_receives_modified_key(helix: Helix) -> None:
-    eventually_bottom_line_contains(helix, "Grove test key reached Helix")
+def helix_receives_modified_key(grove: GroveDriver) -> None:
+    grove.helix.wait(
+        lambda frame: (
+            None
+            if "Grove test key reached Helix" in frame.bottom_line
+            else "Helix did not receive the modified key"
+        )
+    )
 
 
 @then(parsers.parse('the editor does not contain "{text}"'))
-def editor_does_not_contain(helix: Helix, text: str) -> None:
-    consistently(
-        helix,
-        lambda screen: (
+def editor_does_not_contain(grove: GroveDriver, text: str) -> None:
+    grove.hold(
+        lambda frame: (
             f'Helix inserted "{text}" into the editor'
-            if screen.editor_contains(text)
+            if frame.helix.contains(text)
             else None
         ),
     )
 
 
-@then(parsers.parse("Helix has {count:d} editor view"))
-@then(parsers.parse("Helix has {count:d} editor views"))
-def helix_has_editor_views(helix: Helix, count: int) -> None:
-    eventually(
-        helix,
-        lambda screen: (
+@then(parsers.parse("Helix Editor view count is {count:d}"))
+def helix_has_editor_views(grove: GroveDriver, count: int) -> None:
+    grove.wait(
+        lambda frame: (
             None
-            if screen.editor_view_count == count
+            if len(frame.helix.views) == count
             else f"Helix did not show {count} editor views"
         ),
     )
 
 
-@then(parsers.parse('"{name}" is the Active file'))
-def entry_is_active_file(helix: Helix, name: str) -> None:
-    eventually(
-        helix,
-        lambda screen: (
-            None
-            if screen.row(name) is not None and screen.document == name
-            else f'Helix did not present "{name}" as the Active file'
-        ),
-    )
-
-
 @then(parsers.parse('"{name}" has Cursor'))
-def entry_has_cursor(helix: Helix, name: str) -> None:
-    eventually(
-        helix,
-        lambda screen: (
+def entry_has_cursor(grove: GroveDriver, name: str) -> None:
+    grove.wait(
+        lambda frame: (
             None
-            if (row := screen.row(name)) is not None and screen.grove_cursor == row
+            if (row := frame.row(scenario_path(name))) is not None
+            and frame.pane is not None
+            and frame.pane.cursor == row
             else f'Grove did not place Cursor on "{name}"'
         ),
     )
 
 
 @when("Helix closes the active Editor view")
-def helix_closes_active_editor_view(helix: Helix) -> None:
-    helix.command(":quit!")
+def helix_closes_active_editor_view(grove: GroveDriver) -> None:
+    grove.helix.command("quit!")
 
 
 @when("Helix exits")
-def exit_helix(helix: Helix) -> None:
-    helix.exit()
+def exit_helix(grove: GroveDriver) -> None:
+    grove.helix.quit()
 
 
 @then("Helix exits normally")
-def helix_exits_normally(helix: Helix) -> None:
-    helix.wait_for_exit()
-
-
-@then("the editor remains active")
-def editor_remains_active(helix: Helix) -> None:
-    helix.type("i")
-    helix.type("editor-active")
-    eventually(
-        helix,
-        lambda screen: (
-            None
-            if screen.editor_mode == "Insert"
-            and screen.editor_contains("editor-active")
-            else "Grove took focus from the active editor"
-        ),
-    )
+def helix_exits_normally(grove: GroveDriver) -> None:
+    assert grove.helix.wait_for_exit() == 0
 
 
 @then("Grove does not replace the error with a generic notice")
-def grove_does_not_replace_open_error(helix: Helix) -> None:
-    consistently(
-        helix,
-        lambda screen: (
+def grove_does_not_replace_open_error(grove: GroveDriver) -> None:
+    grove.hold(
+        lambda frame: (
             "Grove replaced Helix's open error with a generic notice"
-            if screen.editor_contains("Grove: cannot open file")
+            if frame.helix.contains("Grove: cannot open file")
             else None
         ),
     )

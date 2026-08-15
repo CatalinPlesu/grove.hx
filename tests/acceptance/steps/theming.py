@@ -1,43 +1,78 @@
-import time
+import json
+from contextlib import ExitStack
 from pathlib import Path
 
+import pytest
 from libtmux.server import Server
-from pytest import FixtureRequest
 from pytest_bdd import given, parsers, then, when
+from rich.console import Console
 from rich.text import Text
 
-from tests.support.host import TEST_THEME, Helix, start
-from tests.support.screen import ANSI_CONSOLE, Row, Screen
-from tests.support.waiting import eventually
-from tests.support.workspace import Workspace
+from tests.support.grove import GroveDriver, GroveFrame, VisibleRow
+from tests.support.grove_launch import start_grove_helix
+from tests.support.helix import TEST_THEME, HelixDriver, HelixSandbox
+from tests.support.workspace import EntrySpec, WorkspaceFixture
+
+from .rows import scenario_path
+
+REPOSITORY = Path(__file__).parents[3]
+ANSI_CONSOLE = Console(color_system="truecolor")
 
 
-@given("a Grove theme assigns these sources", target_fixture="grove_start_options")
-def configured_grove_theme(datatable: list[list[str]]) -> tuple[str, ...]:
-    sources = {
-        "native row Style": (
-            "(style-bg "
-            "(style-fg "
-            "(style-with-reversed (style-with-bold (style))) "
-            "(Color/rgb 1 2 3)) "
-            "(Color/rgb 4 5 6))"
-        ),
-        "semantic scope": '"grove.test.modified"',
-        "cursor semantic scope": '"grove.test.cursor"',
-        "empty scope": '"grove.test.empty"',
-        "fixed Pane Style": "(style-bg (style) (Color/rgb 221 238 255))",
-        "fixed Visible row Style": (
-            "(style-bg (style-fg (style) (Color/rgb 17 34 51)) (Color/rgb 221 238 255))"
-        ),
-        "fixed Cursor background Style": ("(style-bg (style) (Color/rgb 4 5 6))"),
-    }
-    fields = " ".join(f"#:{role} {sources[source]}" for role, source in datatable[1:])
-    return (f"#:theme (grove-theme {fields})",)
+@pytest.fixture
+def grove_theme_sources() -> dict[str, dict[str, str]]:
+    return {}
+
+
+@given("a Grove theme assigns these sources", target_fixture="grove_settings")
+def configured_grove_theme(
+    datatable: list[list[str]],
+    grove_theme_sources: dict[str, dict[str, str]],
+) -> dict[str, str]:
+    header, *rows = datatable
+    grove_theme_sources.update(
+        (record["role"], record) for record in (dict(zip(header, row)) for row in rows)
+    )
+    fields = " ".join(
+        f"#:{role} {_theme_source(record)}"
+        for role, record in grove_theme_sources.items()
+    )
+    return {"theme": f"(grove-theme {fields})"}
+
+
+def _theme_source(record: dict[str, str]) -> str:
+    if record["source"] != "Style":
+        return json.dumps(record["source"])
+    style = "(style)"
+    for modifier in record.get("modifiers", "").split():
+        style = f"(style-with-{modifier} {style})"
+    for field, operation in (("foreground", "style-fg"), ("background", "style-bg")):
+        if color := record.get(field):
+            red, green, blue = bytes.fromhex(color.removeprefix("#"))
+            style = f"({operation} {style} (Color/rgb {red} {green} {blue}))"
+    return style
+
+
+def _configured_color(
+    sources: dict[str, dict[str, str]],
+    role: str,
+    field: str,
+) -> tuple[int, int, int]:
+    return tuple(bytes.fromhex(sources[role][field].removeprefix("#")))
+
+
+def _active_file_row(frame: GroveFrame) -> VisibleRow | None:
+    if frame.pane is None:
+        return None
+    return next(
+        (row for row in frame.pane.rows if "*" in row.text[: row.label_column]),
+        None,
+    )
 
 
 @when("Helix changes to a theme with different colors for that scope")
-def change_to_alternate_theme(helix: Helix) -> None:
-    helix.command(":theme grove_test_alt")
+def change_to_alternate_theme(grove: GroveDriver) -> None:
+    grove.helix.command("theme grove_test_alt")
 
 
 @given(
@@ -45,77 +80,86 @@ def change_to_alternate_theme(helix: Helix) -> None:
     target_fixture="helix",
 )
 def start_with_invalid_theme(
+    resources: ExitStack,
     tmp_path: Path,
     server: Server,
-    request: FixtureRequest,
+    helix_sandbox: HelixSandbox,
     configuration: str,
-) -> Helix:
-    workspace = Workspace.create(
+) -> HelixDriver:
+    workspace = WorkspaceFixture.create(
         tmp_path / "workspace",
-        [["path"], ["anchor.txt"]],
+        [EntrySpec(Path("anchor.txt"))],
     )
-    helix = start(
-        tmp_path / "host",
+    resources.callback(workspace.close)
+    helix = start_grove_helix(
+        helix_sandbox,
+        REPOSITORY,
         server,
         workspace,
         active_file=None,
         startup=f"(grove-start! #:theme {configuration})",
         theme=TEST_THEME,
     )
-    request.addfinalizer(helix.close)
+    resources.callback(helix.close)
     return helix
 
 
 @then("Grove startup reports an invalid theme error")
-def startup_reports_invalid_theme(helix: Helix) -> None:
-    deadline = time.monotonic() + 10
-    while time.monotonic() < deadline:
-        output = "\n".join(helix.pane.capture_pane())
-        if "invalid Grove theme" in output:
-            return
-        time.sleep(0.05)
-    raise AssertionError("Grove did not report invalid theme configuration")
+def startup_reports_invalid_theme(helix: HelixDriver) -> None:
+    helix.terminal.wait(
+        lambda frame: (
+            None
+            if any("invalid Grove theme" in line for line in frame.lines)
+            else "Grove did not report invalid theme configuration"
+        )
+    )
 
 
 @then("Cursor uses the configured row colors without source modifiers")
-def cursor_uses_configured_colors_only(helix: Helix) -> None:
-    def mismatch(screen: Screen) -> str | None:
-        active = screen.row("active.txt")
+def cursor_uses_configured_colors_only(
+    grove: GroveDriver,
+    grove_theme_sources: dict[str, dict[str, str]],
+) -> None:
+    foreground = _configured_color(grove_theme_sources, "cursor", "foreground")
+    background = _configured_color(grove_theme_sources, "cursor", "background")
+
+    def mismatch(frame: GroveFrame) -> str | None:
+        active = frame.pane.cursor if frame.pane else None
         if active is None:
-            return 'Grove did not show "active.txt"'
-        if active.foreground_before("active.txt") != (1, 2, 3):
+            return "Grove did not show Cursor"
+        if active.foreground_at(active.label) != foreground:
             return "Cursor did not use the configured foreground"
-        for marker in ("*", "active.txt"):
-            actual = active.style_before(marker)
-            if active.background_before(marker) != (4, 5, 6):
+        for marker in ("*", active.label):
+            actual = active.style_at(marker)
+            if active.background_at(marker) != background:
                 return "Cursor did not use the configured background"
             if bool(actual.bold) or bool(actual.reverse):
                 return "Cursor kept source modifiers"
         return None
 
-    eventually(helix, mismatch)
+    grove.wait(mismatch)
 
 
 @then("Cursor uses that scope from the active Helix theme")
-def cursor_uses_semantic_scope(helix: Helix) -> None:
-    _cursor_uses_background(helix, (17, 34, 51))
+def cursor_uses_semantic_scope(grove: GroveDriver) -> None:
+    _cursor_uses_background(grove, (17, 34, 51))
 
 
 @then("Cursor uses the new colors")
-def cursor_uses_changed_semantic_scope(helix: Helix) -> None:
-    _cursor_uses_background(helix, (51, 68, 85))
+def cursor_uses_changed_semantic_scope(grove: GroveDriver) -> None:
+    _cursor_uses_background(grove, (51, 68, 85))
 
 
 def _cursor_uses_background(
-    helix: Helix,
+    grove: GroveDriver,
     expected: tuple[int, int, int],
 ) -> None:
-    eventually(
-        helix,
-        lambda screen: (
+    grove.wait(
+        lambda frame: (
             None
-            if (row := screen.row("anchor.txt")) is not None
-            and row.background_before("anchor.txt") == expected
+            if frame.pane is not None
+            and (row := frame.pane.cursor) is not None
+            and row.background_at(row.label) == expected
             else "Cursor did not follow the active Helix theme"
         ),
     )
@@ -123,72 +167,105 @@ def _cursor_uses_background(
 
 @then(
     parsers.parse(
-        '"{name}" uses background "{expected}" without source foreground or modifiers'
+        '"{name}" uses background "{expected}" and the foreground of "{reference}" without modifiers'
     )
 )
-def entry_uses_background_only(helix: Helix, name: str, expected: str) -> None:
+def entry_uses_background_only(
+    grove: GroveDriver,
+    name: str,
+    expected: str,
+    reference: str,
+) -> None:
     expected_rgb = tuple(bytes.fromhex(expected.removeprefix("#")))
 
-    def mismatch(screen: Screen) -> str | None:
-        row = screen.row(name)
-        plain = screen.row("plain.txt")
+    def mismatch(frame: GroveFrame) -> str | None:
+        row = frame.row(scenario_path(name))
+        plain = frame.row(scenario_path(reference))
         if row is None or plain is None:
             return "Grove did not show both rows"
-        style = row.style_before(name)
-        if row.background_before(name) != expected_rgb:
+        style = row.style_at(row.label)
+        if row.background_at(row.label) != expected_rgb:
             return f'"{name}" did not use background {expected}'
-        if row.foreground_before(name) != plain.foreground_before("plain.txt"):
+        if row.foreground_at(row.label) != plain.foreground_at(plain.label):
             return f'"{name}" kept the source foreground'
         if bool(style.bold) or bool(style.reverse):
             return f'"{name}" kept source modifiers'
         return None
 
-    eventually(helix, mismatch)
+    grove.wait(mismatch)
 
 
 @then(parsers.parse('"{name}" uses the configured Visible row colors'))
 def entry_uses_configured_visible_row_colors(
-    helix: Helix,
+    grove: GroveDriver,
     name: str,
+    grove_theme_sources: dict[str, dict[str, str]],
 ) -> None:
-    def mismatch(screen: Screen) -> str | None:
-        row = screen.row(name)
+    foreground = _configured_color(
+        grove_theme_sources,
+        "visible-row",
+        "foreground",
+    )
+    background = _configured_color(
+        grove_theme_sources,
+        "visible-row",
+        "background",
+    )
+
+    def mismatch(frame: GroveFrame) -> str | None:
+        row = frame.row(scenario_path(name))
         if row is None:
             return f'Grove did not show "{name}"'
-        style = row.style_before(name)
+        style = row.style_at(row.label)
         if (
-            row.foreground_before(name) == (17, 34, 51)
-            and row.background_before(name) == (221, 238, 255)
+            row.foreground_at(row.label) == foreground
+            and row.background_at(row.label) == background
             and not any((style.reverse, style.bold, style.dim))
         ):
             return None
         return f'"{name}" did not use the Visible row colors: {style!r}'
 
-    eventually(helix, mismatch)
+    grove.wait(mismatch)
 
 
 @then("Cursor uses the configured background and Visible row foreground")
-def cursor_inherits_visible_row_foreground(helix: Helix) -> None:
-    eventually(
-        helix,
-        lambda screen: (
+def cursor_inherits_visible_row_foreground(
+    grove: GroveDriver,
+    grove_theme_sources: dict[str, dict[str, str]],
+) -> None:
+    foreground = _configured_color(
+        grove_theme_sources,
+        "visible-row",
+        "foreground",
+    )
+    background = _configured_color(grove_theme_sources, "cursor", "background")
+    grove.wait(
+        lambda frame: (
             None
-            if (row := screen.row("active.txt")) is not None
-            and row.foreground_before("active.txt") == (17, 34, 51)
-            and row.background_before("active.txt") == (4, 5, 6)
+            if frame.pane is not None
+            and (row := frame.pane.cursor) is not None
+            and row.foreground_at(row.label) == foreground
+            and row.background_at(row.label) == background
             else "Cursor did not inherit the Visible row foreground"
         ),
     )
 
 
 @then("the Active file mark uses the configured Visible row foreground")
-def active_file_mark_inherits_row_foreground(helix: Helix) -> None:
-    eventually(
-        helix,
-        lambda screen: (
+def active_file_mark_inherits_row_foreground(
+    grove: GroveDriver,
+    grove_theme_sources: dict[str, dict[str, str]],
+) -> None:
+    foreground = _configured_color(
+        grove_theme_sources,
+        "visible-row",
+        "foreground",
+    )
+    grove.wait(
+        lambda frame: (
             None
-            if (row := screen.row("active.txt")) is not None
-            and row.foreground_before("*") == (17, 34, 51)
+            if (row := _active_file_row(frame)) is not None
+            and row.foreground_at("*") == foreground
             else "Active file mark did not inherit the row foreground"
         ),
     )
@@ -198,71 +275,76 @@ def active_file_mark_inherits_row_foreground(helix: Helix) -> None:
     "the Active file mark uses the configured foreground without source "
     "background or modifiers"
 )
-def active_file_mark_uses_configured_foreground_only(helix: Helix) -> None:
-    def mismatch(screen: Screen) -> str | None:
-        row = screen.row("active.txt")
+def active_file_mark_uses_configured_foreground_only(
+    grove: GroveDriver,
+    grove_theme_sources: dict[str, dict[str, str]],
+) -> None:
+    foreground = _configured_color(
+        grove_theme_sources,
+        "active-file-mark-foreground",
+        "foreground",
+    )
+
+    def mismatch(frame: GroveFrame) -> str | None:
+        row = _active_file_row(frame)
         if row is None:
-            return 'Grove did not show "active.txt"'
-        mark = row.style_before("*")
-        if row.foreground_before("*") != (1, 2, 3):
+            return "Grove did not show the Active file mark"
+        mark = row.style_at("*")
+        if row.foreground_at("*") != foreground:
             return "Active file mark did not use the configured foreground"
-        if row.background_before("*") != row.background_before("active.txt"):
+        if row.background_at("*") != row.background_at(row.label):
             return "Active file mark replaced the row background"
         if bool(mark.bold) or bool(mark.reverse):
             return "Active file mark kept source modifiers"
         return None
 
-    eventually(helix, mismatch)
+    grove.wait(mismatch)
 
 
-def _color_number(row: Row, marker: str) -> int | None:
-    color = row.style_before(marker).color
-    return color.number if color is not None else None
+@then("these rows use terminal fallback colors")
+def rows_use_terminal_fallback_colors(
+    grove: GroveDriver,
+    datatable: list[list[str]],
+) -> None:
+    _, *expected = datatable
 
-
-@then("Grove uses terminal fallback colors for status presentation")
-def grove_uses_status_fallback_colors(helix: Helix) -> None:
-    expected = {
-        "broken-link": 9,
-        "conflict.txt": 5,
-        "deleted-dir": 1,
-        "modified.txt": 3,
-        "created.txt": 2,
-    }
-
-    def mismatch(screen: Screen) -> str | None:
-        for name, color in expected.items():
-            row = screen.row(name)
+    def mismatch(frame: GroveFrame) -> str | None:
+        for name, marker_name, color_text in expected:
+            row = frame.row(scenario_path(name))
             if row is None:
                 return f'Grove did not show "{name}"'
-            actual = _color_number(row, name)
+            marker = {
+                "label": row.label,
+                "Broken link icon": "󰌺",
+                "Unsaved mark": "+",
+            }[marker_name]
+            color = int(color_text)
+            style_color = row.style_at(marker).color
+            actual = style_color.number if style_color is not None else None
             if actual != color:
-                return f'"{name}" used ANSI color {actual!r}, not {color}'
-        broken = screen.row("broken-link")
-        if broken is None or _color_number(broken, "󰌺") != expected["broken-link"]:
-            return '"broken-link" did not apply its fallback to the icon'
-        active = screen.row("active.txt")
-        root = screen.workspace_root
-        if active is None or _color_number(active, "+") != 6:
-            return '"active.txt" did not use terminal cyan for its Unsaved mark'
-        if root is None or _color_number(root, "+") != 6:
-            return "Workspace did not use terminal cyan for its Unsaved mark"
+                return f'"{name}" {marker_name} used ANSI color {actual!r}, not {color}'
         return None
 
-    eventually(helix, mismatch)
+    grove.wait(mismatch)
 
 
 @then("the Rail track and thumb use terminal default foregrounds")
-def rail_uses_terminal_default_foregrounds(helix: Helix) -> None:
-    def mismatch(screen: Screen) -> str | None:
-        thumb = screen.rail_thumb
-        track = screen.rail_track("below") or screen.rail_track("above")
+def rail_uses_terminal_default_foregrounds(grove: GroveDriver) -> None:
+    def mismatch(frame: GroveFrame) -> str | None:
+        thumb = frame.pane.rail.thumb if frame.pane else None
+        track = (
+            frame.pane.rail.track("below") or frame.pane.rail.track("above")
+            if frame.pane
+            else None
+        )
         if track is None or thumb is None:
             return "Grove did not show both Rail parts"
 
         for part, position in (("track", track), ("thumb", thumb)):
             column, row = position
-            style = Text.from_ansi(screen.styled_lines[row - 1]).get_style_at_offset(
+            style = Text.from_ansi(
+                frame.helix.terminal.styled_lines[row - 1]
+            ).get_style_at_offset(
                 ANSI_CONSOLE,
                 column - 1,
             )
@@ -273,4 +355,4 @@ def rail_uses_terminal_default_foregrounds(helix: Helix) -> None:
                 )
         return None
 
-    eventually(helix, mismatch)
+    grove.wait(mismatch)

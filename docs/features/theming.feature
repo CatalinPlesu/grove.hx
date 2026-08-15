@@ -11,9 +11,9 @@ Feature: Theme Grove
       | path         | status   |
       | modified.txt | modified |
     And a Grove theme assigns these sources
-      | role                    | source           |
-      | cursor                  | native row Style |
-      | git-modified-foreground | semantic scope   |
+      | role                    | source              | foreground | background | modifiers     |
+      | cursor                  | Style               | #010203    | #040506    | bold reversed |
+      | git-modified-foreground | grove.test.modified |            |            |               |
     When Helix starts with Grove in that Workspace
     And Grove is focused
     Then Cursor uses the configured row colors without source modifiers
@@ -26,8 +26,8 @@ Feature: Theme Grove
       | anchor.txt |
     And "anchor.txt" is Active
     And a Grove theme assigns these sources
-      | role   | source                |
-      | cursor | cursor semantic scope |
+      | role   | source            |
+      | cursor | grove.test.cursor |
     When Helix starts with Grove in that Workspace
     And Grove is focused
     Then Cursor uses that scope from the active Helix theme
@@ -43,7 +43,7 @@ Feature: Theme Grove
     And "active.txt" is Active
     And the Host theme uses Active buffer background "<bufferline>" and Statusline background "#334455"
     When Helix starts with Grove in that Workspace
-    Then "active.txt" uses background "<expected>" without source foreground or modifiers
+    Then "active.txt" uses background "<expected>" and the foreground of "plain.txt" without modifiers
 
     Examples:
       | bufferline | expected |
@@ -57,10 +57,10 @@ Feature: Theme Grove
       | plain.txt  |
     And "active.txt" is Active
     And a Grove theme assigns these sources
-      | role                   | source           |
-      | active-file-background | native row Style |
+      | role                   | source | foreground | background | modifiers     |
+      | active-file-background | Style  | #010203    | #040506    | bold reversed |
     When Helix starts with Grove in that Workspace
-    Then "active.txt" uses background "#040506" without source foreground or modifiers
+    Then "active.txt" uses background "#040506" and the foreground of "plain.txt" without modifiers
 
   Scenario Outline: Choose the icon palette from theme inputs
     Given a Workspace containing entries
@@ -84,11 +84,11 @@ Feature: Theme Grove
       | plain.txt  |
     And "active.txt" is Active
     And a Grove theme assigns these sources
-      | role                        | source                        |
-      | pane-background             | fixed Pane Style              |
-      | visible-row                 | fixed Visible row Style       |
-      | cursor                      | fixed Cursor background Style |
-      | active-file-mark-foreground | empty scope                   |
+      | role                        | source           | foreground | background |
+      | pane-background             | Style            |            | #ddeeff    |
+      | visible-row                 | Style            | #112233    | #ddeeff    |
+      | cursor                      | Style            |            | #040506    |
+      | active-file-mark-foreground | grove.test.empty |            |            |
     When Helix starts with Grove in that Workspace
     And Grove is focused
     Then "plain.txt" uses the configured Visible row colors
@@ -101,8 +101,8 @@ Feature: Theme Grove
       | active.txt |
     And "active.txt" is Active
     And a Grove theme assigns these sources
-      | role                        | source                        |
-      | active-file-mark-foreground | native row Style              |
+      | role                        | source | foreground | background | modifiers     |
+      | active-file-mark-foreground | Style  | #010203    | #040506    | bold reversed |
     When Helix starts with Grove in that Workspace
     Then the Active file mark uses the configured foreground without source background or modifiers
 
@@ -114,11 +114,11 @@ Feature: Theme Grove
       | file      | outer/inside.txt |
     And "anchor.txt" is Active
     And a Grove theme assigns these sources
-      | role              | source      |
-      | guides-foreground | empty scope |
+      | role              | source           |
+      | guides-foreground | grove.test.empty |
     When Helix starts with Grove in that Workspace
     And the "outer" directory is expanded
-    Then the Ancestor trace and Leaf mark on "inside.txt" use the terminal gray foreground
+    Then the Ancestor trace and Leaf mark on "outer/inside.txt" use the terminal gray foreground
 
   Scenario: Use visible whitespace color for Guides
     Given a Workspace containing entries
@@ -130,7 +130,7 @@ Feature: Theme Grove
     And the Host theme defines ui.virtual.whitespace but not ui.virtual.indent-guide
     When Helix starts with Grove in that Workspace
     And the "outer" directory is expanded
-    Then the Ancestor trace and Leaf mark on "inside.txt" use the theme Guides foreground
+    Then the Ancestor trace and Leaf mark on "outer/inside.txt" use the theme Guides foreground
 
   Scenario: Apply status fallback colors with empty sources
     Given a Workspace containing entries
@@ -149,16 +149,25 @@ Feature: Theme Grove
       | modified.txt         | modified |
       | created.txt          | created  |
     And a Grove theme assigns these sources
-      | role                        | source      |
-      | filesystem-error-foreground | empty scope |
-      | git-conflict-foreground      | empty scope |
-      | git-deleted-foreground       | empty scope |
-      | git-modified-foreground      | empty scope |
-      | git-created-foreground       | empty scope |
-      | unsaved-mark-foreground      | empty scope |
+      | role                        | source           |
+      | filesystem-error-foreground | grove.test.empty |
+      | git-conflict-foreground      | grove.test.empty |
+      | git-deleted-foreground       | grove.test.empty |
+      | git-modified-foreground      | grove.test.empty |
+      | git-created-foreground       | grove.test.empty |
+      | unsaved-mark-foreground      | grove.test.empty |
     When Helix starts with Grove in that Workspace
-    And the editor inserts "dirty-" without saving
-    Then Grove uses terminal fallback colors for status presentation
+    And the editor inserts "dirty-" without saving and returns to Normal mode
+    Then these rows use terminal fallback colors
+      | row            | marker           | ANSI color |
+      | broken-link    | label            | 9          |
+      | broken-link    | Broken link icon | 9          |
+      | conflict.txt   | label            | 5          |
+      | deleted-dir    | label            | 1          |
+      | modified.txt   | label            | 3          |
+      | created.txt    | label            | 2          |
+      | active.txt     | Unsaved mark     | 6          |
+      | Workspace root | Unsaved mark     | 6          |
 
   Scenario: Inherit the Pinned ancestor background
     Given a Workspace containing entries
@@ -167,18 +176,18 @@ Feature: Theme Grove
       | file | tail-{:02d}.txt                  | 6     |
     And "alpha/beta/gamma/item-00.txt" is Active
     And a Grove theme assigns these sources
-      | role                | source                  |
-      | pane-background     | fixed Pane Style        |
-      | visible-row         | fixed Visible row Style |
-      | pinned-ancestor-row | empty scope             |
+      | role                | source           | foreground | background |
+      | pane-background     | Style            |            | #ddeeff    |
+      | visible-row         | Style            | #112233    | #ddeeff    |
+      | pinned-ancestor-row | grove.test.empty |            |            |
     When Helix starts with Grove in that Workspace
     And the terminal height becomes 6 rows
     And Grove is focused
     And Grove receives "Up"
     And the Wheel scrolls down over Grove
     And the Wheel scrolls down over Grove
-    Then the Ancestor stack is "workspace > alpha > beta > gamma" above File tree row "item-02.txt"
-    And "beta" uses the configured Visible row colors
+    Then the Ancestor stack is "Workspace root > alpha > alpha/beta > alpha/beta/gamma" above File tree row "alpha/beta/gamma/item-02.txt"
+    And "alpha/beta" uses the configured Visible row colors
 
   Scenario: Apply Rail terminal defaults with an empty source
     Given a Workspace containing entries
@@ -187,10 +196,10 @@ Feature: Theme Grove
       | file | page-{:02d}.txt | 40    |
     And "anchor.txt" is Active
     And a Grove theme assigns these sources
-      | role            | source                  |
-      | pane-background | fixed Pane Style        |
-      | visible-row     | fixed Visible row Style |
-      | rail            | empty scope             |
+      | role            | source           | foreground | background |
+      | pane-background | Style            |            | #ddeeff    |
+      | visible-row     | Style            | #112233    | #ddeeff    |
+      | rail            | grove.test.empty |            |            |
     When Helix starts with Grove in that Workspace
     Then the Rail track and thumb use terminal default foregrounds
 

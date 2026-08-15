@@ -14,7 +14,8 @@ Feature: Manage Workspace files
     When the prompt receives "new.txt"
     Then "docs/new.txt" exists as an empty file
     And Helix shows the "docs/new.txt" document
-    And the editor remains active
+    When the editor receives "i" while Grove is unfocused
+    Then the active Editor view is in Insert mode
 
   Scenario: Keep Cursor when file creation is refused
     Given a Workspace containing entries
@@ -79,14 +80,15 @@ Feature: Manage Workspace files
       | directory | archive            |
     And "anchor.txt" is Active
     When Helix starts with Grove in that Workspace
-    And Helix opens "old/background.txt" as a clean background buffer behind "anchor.txt"
+    And Helix opens "old/background.txt"
+    And Helix opens "anchor.txt"
     And Grove is focused
     And Grove receives "Up"
     And Grove receives "r"
     Then the native prompt is "Rename or move old to"
     When the prompt receives "archive/new"
     Then "old" no longer exists and "archive/new" exists
-    And "workspace" has Cursor
+    And "Workspace root" has Cursor
     When Grove receives "Escape"
     Then the old "old/background.txt" buffer is closed
     And Helix shows the "anchor.txt" document
@@ -97,7 +99,7 @@ Feature: Manage Workspace files
       | file | anchor.txt |
     And "anchor.txt" is Active
     When Helix starts with Grove in that Workspace
-    And the editor inserts "dirty-" without saving
+    And the editor inserts "dirty-" without saving and returns to Normal mode
     And Grove is focused
     And Grove receives "r"
     Then the native prompt is "Rename or move anchor.txt to"
@@ -150,15 +152,16 @@ Feature: Manage Workspace files
       | file      | docs/background.txt |
     And "docs/active.txt" is Active
     When Helix starts with Grove in that Workspace
-    And Helix opens "anchor.txt" as a clean background buffer behind "docs/active.txt"
-    And Helix opens "docs/background.txt" as a clean background buffer behind "docs/active.txt"
+    And Helix opens "anchor.txt"
+    And Helix opens "docs/background.txt"
+    And Helix opens "docs/active.txt"
     And Grove is focused
     And Grove receives "Up"
     And Grove receives "d"
     Then Helix shows the message "Permanently delete docs/ recursively? y to confirm"
     When Grove receives "y"
     Then "docs" no longer exists
-    And "workspace" has Cursor
+    And "Workspace root" has Cursor
     When Grove receives "Escape"
     Then the old "docs/background.txt" buffer is closed
     And the old "docs/active.txt" buffer is closed
@@ -172,8 +175,9 @@ Feature: Manage Workspace files
       | file | fallback.txt |
     And "anchor.txt" is Active
     When Helix starts with Grove in that Workspace
-    And Helix opens "fallback.txt" as a clean background buffer behind "anchor.txt"
-    And the editor inserts "dirty-" without saving
+    And Helix opens "fallback.txt"
+    And Helix opens "anchor.txt"
+    And the editor inserts "dirty-" without saving and returns to Normal mode
     And Grove is focused
     And Grove receives "d"
     Then Helix shows the message "Permanently delete anchor.txt? y to confirm"
@@ -191,96 +195,103 @@ Feature: Manage Workspace files
     And Helix shows the "fallback.txt" document
     And "fallback.txt" already uses the Active file mark
 
-  Scenario Outline: Protect source and destination paths
-    Given a Workspace containing entries
-      | kind | path            |
-      | file | anchor.txt      |
-      | file | destination.txt |
-      | file | source.txt      |
-    And "anchor.txt" is Active
-    When Helix starts with Grove in that Workspace
-    And the terminal width becomes 140 columns
-    And Helix prepares "<protection>" for file mutation
-    And Grove is focused
-    And Grove receives "PageDown"
-    And Grove receives "r"
-    Then the native prompt is "Rename or move source.txt to"
-    When the prompt receives "<destination>"
-    Then Helix shows the message "<message>"
-    And "source.txt" still exists
-    And "source.txt" has Cursor
+  Rule: Protect source and destination paths
 
-    Examples:
-      | protection       | destination     | message                                                                         |
-      | dirty source     | renamed.txt     | Cannot rename or move source.txt to renamed.txt: source.txt has unsaved changes |
-      | open destination | destination.txt | Cannot rename or move source.txt to destination.txt: destination is open in Helix |
+    Background:
+      Given a Workspace containing entries
+        | kind | path            |
+        | file | anchor.txt      |
+        | file | destination.txt |
+        | file | source.txt      |
+      And "anchor.txt" is Active
+      When Helix starts with Grove in that Workspace
+      And the terminal width becomes 140 columns
 
-  Scenario: Refuse a closed destination collision
-    Given a Workspace containing entries
-      | kind | path            |
-      | file | anchor.txt      |
-      | file | destination.txt |
-      | file | source.txt      |
-    And "anchor.txt" is Active
-    When Helix starts with Grove in that Workspace
-    And the terminal width becomes 140 columns
-    And Grove is focused
-    And Grove receives "PageDown"
-    And Grove receives "r"
-    Then the native prompt is "Rename or move source.txt to"
-    When the prompt receives "destination.txt"
-    Then Helix shows the message "Cannot rename or move source.txt to destination.txt: destination already exists"
-    And "source.txt" still exists
-    And "source.txt" has Cursor
+    Scenario: Protect a dirty source path
+      When Helix opens "source.txt"
+      And the editor inserts "dirty-" without saving and returns to Normal mode
+      And Helix opens "anchor.txt"
+      And Grove is focused
+      And Grove receives "PageDown"
+      And Grove receives "r"
+      Then the native prompt is "Rename or move source.txt to"
+      When the prompt receives "renamed.txt"
+      Then Helix shows the message "Cannot rename or move source.txt to renamed.txt: source.txt has unsaved changes"
+      And "source.txt" still exists
+      And "source.txt" has Cursor
 
-  Scenario: Move an entry outside the Workspace
-    Given a Workspace containing entries
-      | kind | path       |
-      | file | anchor.txt |
-      | file | source.txt |
-    And "anchor.txt" is Active
-    When Helix starts with Grove in that Workspace
-    And the terminal width becomes 140 columns
-    And Grove is focused
-    And Grove receives "Down"
-    And Grove receives "r"
-    Then the native prompt is "Rename or move source.txt to"
-    When the prompt receives "../escaped.txt"
-    Then "source.txt" no longer exists and "../escaped.txt" exists
+    Scenario: Protect an open destination path
+      When Helix opens "destination.txt"
+      And Helix opens "anchor.txt"
+      And Grove is focused
+      And Grove receives "PageDown"
+      And Grove receives "r"
+      Then the native prompt is "Rename or move source.txt to"
+      When the prompt receives "destination.txt"
+      Then Helix shows the message "Cannot rename or move source.txt to destination.txt: destination is open in Helix"
+      And "source.txt" still exists
+      And "source.txt" has Cursor
 
-  Scenario: Refuse rename after the source disappears
-    Given a Workspace containing entries
-      | kind | path       |
-      | file | anchor.txt |
-      | file | source.txt |
-    And "anchor.txt" is Active
-    When Helix starts with Grove in that Workspace
-    And the terminal width becomes 140 columns
-    And Grove is focused
-    And Grove receives "Down"
-    And Grove receives "r"
-    Then the native prompt is "Rename or move source.txt to"
-    When "source.txt" is deleted
-    And the prompt receives "renamed.txt"
-    Then Helix shows the message "Cannot rename or move source.txt to renamed.txt: source does not exist"
-    And "source.txt" no longer exists
-    And "renamed.txt" does not exist
+    Scenario: Refuse a closed destination collision
+      When Grove is focused
+      And Grove receives "PageDown"
+      And Grove receives "r"
+      Then the native prompt is "Rename or move source.txt to"
+      When the prompt receives "destination.txt"
+      Then Helix shows the message "Cannot rename or move source.txt to destination.txt: destination already exists"
+      And "source.txt" still exists
+      And "source.txt" has Cursor
 
-  Scenario: Report filesystem failure from refreshed truth
-    Given a Workspace containing entries
-      | kind      | path            |
-      | file      | anchor.txt      |
-      | directory | docs            |
-      | file      | docs/nested.txt |
-    And "anchor.txt" is Active
-    When Helix starts with Grove in that Workspace
-    And Grove is focused
-    And Grove receives "Up"
-    And Grove receives "r"
-    Then the native prompt is "Rename or move docs to"
-    When "arrived.txt" is created
-    And the prompt receives "docs/inside"
-    Then Helix shows the message "Cannot rename or move docs to docs/inside:"
-    And the File tree already shows "arrived.txt"
-    And "docs" still exists
-    And "docs" has Cursor
+  Rule: Other file mutations
+
+    Scenario: Move an entry outside the Workspace
+      Given a Workspace containing entries
+        | kind | path       |
+        | file | anchor.txt |
+        | file | source.txt |
+      And "anchor.txt" is Active
+      When Helix starts with Grove in that Workspace
+      And the terminal width becomes 140 columns
+      And Grove is focused
+      And Grove receives "Down"
+      And Grove receives "r"
+      Then the native prompt is "Rename or move source.txt to"
+      When the prompt receives "../escaped.txt"
+      Then "source.txt" no longer exists and "../escaped.txt" exists
+
+    Scenario: Refuse rename after the source disappears
+      Given a Workspace containing entries
+        | kind | path       |
+        | file | anchor.txt |
+        | file | source.txt |
+      And "anchor.txt" is Active
+      When Helix starts with Grove in that Workspace
+      And the terminal width becomes 140 columns
+      And Grove is focused
+      And Grove receives "Down"
+      And Grove receives "r"
+      Then the native prompt is "Rename or move source.txt to"
+      When "source.txt" is deleted
+      And the prompt receives "renamed.txt"
+      Then Helix shows the message "Cannot rename or move source.txt to renamed.txt: source does not exist"
+      And "source.txt" no longer exists
+      And "renamed.txt" does not exist
+
+    Scenario: Report filesystem failure from refreshed truth
+      Given a Workspace containing entries
+        | kind      | path            |
+        | file      | anchor.txt      |
+        | directory | docs            |
+        | file      | docs/nested.txt |
+      And "anchor.txt" is Active
+      When Helix starts with Grove in that Workspace
+      And Grove is focused
+      And Grove receives "Up"
+      And Grove receives "r"
+      Then the native prompt is "Rename or move docs to"
+      When "arrived.txt" is created
+      And the prompt receives "docs/inside"
+      Then Helix shows the message "Cannot rename or move docs to docs/inside:"
+      And the File tree already shows "arrived.txt"
+      And "docs" still exists
+      And "docs" has Cursor

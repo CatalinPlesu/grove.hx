@@ -2,10 +2,10 @@ Feature: Present File tree rows
 
   Scenario: Choose icons and indentation from entry kind
     Given a Workspace containing entries
-      | kind      | path              | target | lines |
-      | file      | anchor.txt        |        |       |
-      | directory | folder            |        |       |
-      | file      | folder/inside.txt |        |       |
+      | kind      | path              |
+      | file      | anchor.txt        |
+      | directory | folder            |
+      | file      | folder/inside.txt |
     And "anchor.txt" is Active
     When Helix starts with Grove in that Workspace
     Then the Workspace root uses one File tree icon
@@ -15,15 +15,15 @@ Feature: Present File tree rows
     And the Workspace label starts in column 4 and "folder" and "anchor.txt" labels start in column 6
     And "folder" can expand
     When the "folder" directory is expanded
-    Then "inside.txt" is indented two columns from "folder"
+    Then "folder/inside.txt" is indented two columns from "folder"
 
   Scenario: Show Guides
     Given a Workspace containing entries
-      | kind      | path                        | target | lines |
-      | file      | anchor.txt                  |        |       |
-      | directory | outer                       |        |       |
-      | directory | outer/inner                 |        |       |
-      | file      | outer/inner/inside.txt      |        |       |
+      | kind      | path                   |
+      | file      | anchor.txt             |
+      | directory | outer                  |
+      | directory | outer/inner            |
+      | file      | outer/inner/inside.txt |
     And "anchor.txt" is Active
     When Helix starts with Grove in that Workspace
     Then the Workspace root has neither an Ancestor trace nor a Leaf mark
@@ -33,17 +33,17 @@ Feature: Present File tree rows
     And "anchor.txt" uses the file icon
     When the "outer" directory is expanded
     And the "outer/inner" directory is expanded
-    Then "inner" uses 1 Ancestor trace
-    And "inside.txt" uses 2 Ancestor traces
-    And "inside.txt" uses 1 Leaf mark
-    And the Ancestor traces and Leaf mark on "inside.txt" use the theme Guides foreground
+    Then "outer/inner" uses 1 Ancestor trace
+    And "outer/inner/inside.txt" uses 2 Ancestor traces
+    And "outer/inner/inside.txt" uses 1 Leaf mark
+    And the Ancestor traces and Leaf mark on "outer/inner/inside.txt" use the theme Guides foreground
 
   Scenario: Disable guides
     Given a Workspace containing entries
-      | kind      | path                        | target | lines |
-      | file      | anchor.txt                  |        |       |
-      | directory | outer                       |        |       |
-      | file      | outer/inside.txt            |        |       |
+      | kind      | path             |
+      | file      | anchor.txt       |
+      | directory | outer            |
+      | file      | outer/inside.txt |
     And "anchor.txt" is Active
     And Grove settings
       | setting | value    |
@@ -55,8 +55,8 @@ Feature: Present File tree rows
     Then "anchor.txt" uses 0 Leaf marks
     And "anchor.txt" uses the Active file mark
     When the "outer" directory is expanded
-    Then "inside.txt" uses 0 Ancestor traces
-    And "inside.txt" uses 0 Leaf marks
+    Then "outer/inside.txt" uses 0 Ancestor traces
+    And "outer/inside.txt" uses 0 Leaf marks
 
   Scenario: Present Cursor and Active file marks without shifting rows
     Given a Workspace containing entries
@@ -82,17 +82,12 @@ Feature: Present File tree rows
 
   Scenario: Present links by target state
     Given a Workspace containing entries
-      | kind                      | path            | target    | lines |
-      | file                      | file2.txt       |           |       |
-      | file                      | file10.txt      |           |       |
-      | file                      | .env            |           |       |
-      | directory                 | adir            |           |       |
-      | directory                 | .git            |           |       |
-      | file                      | .git/hidden.txt |           |       |
-      | file link                 | file-link       | file2.txt |       |
-      | unfollowed directory link | directory-link  | adir      |       |
-      | broken link               | broken-link     | missing   |       |
-      | fifo                      | named-pipe      |           |       |
+      | kind                      | path           | target    |
+      | file                      | file2.txt      |           |
+      | directory                 | adir           |           |
+      | file link                 | file-link      | file2.txt |
+      | unfollowed directory link | directory-link | adir      |
+      | broken link               | broken-link    | missing   |
     And "file2.txt" is Active
     When Helix starts with Grove in that Workspace
     Then "file-link" uses the File link icon
@@ -117,8 +112,9 @@ Feature: Present File tree rows
     Then "locked" uses the modified Git foreground
     And "anchor.txt" uses the modified Git foreground
     When the "locked" directory is expanded
-    And the File tree shows "inside.txt"
-    And "locked" becomes unreadable
+    Then the File tree shows "locked/inside.txt"
+    When "locked" becomes unreadable
+    And Grove is focused
     And Grove receives "Up"
     And Grove receives "Enter"
     And Grove receives "Enter"
@@ -131,15 +127,15 @@ Feature: Present File tree rows
     And "anchor.txt" is Active
     When Helix starts with Grove in that Workspace
     And the Workspace root becomes unreadable
-    Then "workspace" uses the unreadable-directory icon and error foreground
-    And "workspace" cannot expand
+    Then "Workspace root" uses the unreadable-directory icon and error foreground
+    And "Workspace root" cannot expand
 
   Scenario: Align rows with icons disabled
     Given a Workspace containing entries
-      | kind      | path              | target | lines |
-      | file      | anchor.txt        |        |       |
-      | directory | folder            |        |       |
-      | file      | folder/inside.txt |        |       |
+      | kind      | path              |
+      | file      | anchor.txt        |
+      | directory | folder            |
+      | file      | folder/inside.txt |
     And "anchor.txt" is Active
     And Grove settings
       | setting | value    |

@@ -6,10 +6,10 @@ Feature: Activate files
       | outer/inner/active.txt |
     And "outer/inner/active.txt" is Active
     When Helix starts with Grove in that Workspace
-    Then the File tree does not show "active.txt"
+    Then the File tree does not show "outer/inner/active.txt"
     When Grove is focused
-    Then the File tree shows "active.txt"
-    And "active.txt" has Cursor
+    Then the File tree shows "outer/inner/active.txt"
+    And "outer/inner/active.txt" has Cursor
 
   Scenario: Reveal an off-screen Active file when Grove is focused
     Given a Workspace containing entries
@@ -19,16 +19,19 @@ Feature: Activate files
     When Helix starts with Grove in that Workspace
     And the terminal height becomes 8 rows
     And "outer" is activated
-    And "inner" is activated
+    And "outer/inner" is activated
     And the Wheel scrolls down over Grove
     And the Wheel scrolls down over Grove
     And the Wheel scrolls down over Grove
     And the Wheel scrolls down over Grove
-    Then the File tree does not show "item-05.txt"
+    Then the File tree does not show "outer/inner/item-05.txt"
     When Grove is focused
-    Then the focused frame shows "item-05.txt" in Pane row 4
-    And the Ancestor stack is "workspace > outer > inner" above File tree row "item-05.txt"
-    And "item-05.txt" stays focused in Pane row 4 through the next refresh
+    Then Pane row 4 is "outer/inner/item-05.txt"
+    And the Ancestor stack is "Workspace root > outer > outer/inner" above File tree row "outer/inner/item-05.txt"
+    When "outer/inner/item-05a.txt" is created
+    Then the File tree shows "outer/inner/item-05a.txt"
+    And Pane row 4 is "outer/inner/item-05.txt"
+    And "outer/inner/item-05.txt" has Cursor
 
   Scenario: Reveal a top-level Active file after Wheel scrolling to the bottom
     Given a Workspace containing entries
@@ -37,11 +40,15 @@ Feature: Activate files
     And "item-00.txt" is Active
     When Helix starts with Grove in that Workspace
     And the terminal height becomes 8 rows
-    And the Wheel scrolls to "item-39.txt" at the File tree bottom
-    Then the File tree does not show "item-00.txt"
+    And the Wheel scrolls down 20 times over Grove
+    Then the File tree ends with "item-39.txt"
+    And the File tree does not show "item-00.txt"
     When Grove is focused
-    Then the focused frame shows "item-00.txt" in Pane row 2
-    And "item-00.txt" stays focused in Pane row 2 through the next refresh
+    Then Pane row 2 is "item-00.txt"
+    When "item-00a.txt" is created
+    Then the File tree shows "item-00a.txt"
+    And Pane row 2 is "item-00.txt"
+    And "item-00.txt" has Cursor
 
   Scenario: Reveal a nested Active file after Wheel scrolling to the bottom
     Given a Workspace containing entries
@@ -53,28 +60,29 @@ Feature: Activate files
     And the terminal height becomes 8 rows
     And Grove is focused
     And Grove receives "Escape"
-    And the Wheel scrolls to "tail-29.txt" at the File tree bottom
-    Then the File tree does not show "item-00.txt"
+    And the Wheel scrolls down 20 times over Grove
+    Then the File tree ends with "tail-29.txt"
+    And the File tree does not show "outer/inner/item-00.txt"
     When Grove is focused
-    Then the focused frame shows "item-00.txt" in Pane row 4
-    And the Ancestor stack is "workspace > outer > inner" above File tree row "item-00.txt"
+    Then Pane row 4 is "outer/inner/item-00.txt"
+    And the Ancestor stack is "Workspace root > outer > outer/inner" above File tree row "outer/inner/item-00.txt"
     When the Wheel scrolls down over Grove
-    Then Pane row 4 is "item-03.txt"
+    Then Pane row 4 is "outer/inner/item-03.txt"
 
   Scenario: Reveal a nested file activated by Helix
     Given a Workspace containing entries
-      | kind      | path              | target | lines |
-      | file      | anchor.txt        |        |       |
-      | directory | folder            |        |       |
-      | file      | folder/inside.txt |        |       |
+      | kind      | path              |
+      | file      | anchor.txt        |
+      | directory | folder            |
+      | file      | folder/inside.txt |
     And "anchor.txt" is Active
     When Helix starts with Grove in that Workspace
     And Grove is focused
-    And Grove receives Helix's file-picker chord for "inside.txt"
+    And Grove receives Helix's file-picker chord and searches for "inside"
     Then Helix shows the "folder/inside.txt" document
-    And the File tree does not show "inside.txt"
+    And the File tree does not show "folder/inside.txt"
     When Grove is focused
-    And the File tree shows "inside.txt"
+    Then the File tree shows "folder/inside.txt"
 
   Scenario: Open another file in the current split
     Given a Workspace containing entries
@@ -88,7 +96,7 @@ Feature: Activate files
     And Grove receives "Enter"
     And the editor inserts "opened-" and saves
     Then the content of "target.txt" starts with "opened-"
-    And Helix has 1 editor view
+    And Helix Editor view count is 1
 
   Scenario Outline: Open the Active file in a new split
     Given a Workspace containing entries
@@ -99,7 +107,7 @@ Feature: Activate files
     When Helix starts with Grove in that Workspace
     And Grove is focused
     And Grove receives "<key>"
-    Then Helix has 2 editor views
+    Then Helix Editor view count is 2
     And Helix shows the "anchor.txt" document
 
     Examples:
@@ -117,7 +125,7 @@ Feature: Activate files
     And Grove is focused
     And Grove receives "Down"
     And Grove receives "<key>"
-    Then Helix has 2 editor views
+    Then Helix Editor view count is 2
     And Helix shows the "target.txt" document
 
     Examples:
@@ -135,11 +143,11 @@ Feature: Activate files
     And Grove is focused
     And Grove receives "Down"
     And Grove receives "Ctrl-v"
-    Then Helix has 2 editor views
+    Then Helix Editor view count is 2
     When Helix closes the active Editor view
-    Then Helix has 1 editor view
+    Then Helix Editor view count is 1
     And Helix shows the "anchor.txt" document
-    And "anchor.txt" is the Active file
+    And "anchor.txt" uses the Active file mark
 
   Scenario: Keep Grove focused after activating a directory
     Given a Workspace containing entries
@@ -156,43 +164,6 @@ Feature: Activate files
     When Grove receives "Down"
     And Grove receives "Enter"
     Then Helix shows the "folder/inside.txt" document
-
-  Scenario: Ignore activation of a Broken link
-    Given a Workspace containing entries
-      | kind                      | path            | target    |
-      | file                      | file2.txt       |           |
-      | file                      | file10.txt      |           |
-      | file                      | .env            |           |
-      | directory                 | adir            |           |
-      | directory                 | .git            |           |
-      | file                      | .git/hidden.txt |           |
-      | file link                 | file-link       | file2.txt |
-      | unfollowed directory link | directory-link  | adir      |
-      | broken link               | broken-link     | missing   |
-      | fifo                      | named-pipe      |           |
-    And "file2.txt" is Active
-    When Helix starts with Grove in that Workspace
-    And "broken-link" is activated
-    Then Helix shows the "file2.txt" document
-    And the editor remains active
-
-  Scenario: Open a File link
-    Given a Workspace containing entries
-      | kind                      | path            | target    |
-      | file                      | file2.txt       |           |
-      | file                      | file10.txt      |           |
-      | file                      | .env            |           |
-      | directory                 | adir            |           |
-      | directory                 | .git            |           |
-      | file                      | .git/hidden.txt |           |
-      | file link                 | file-link       | file2.txt |
-      | unfollowed directory link | directory-link  | adir      |
-      | broken link               | broken-link     | missing   |
-      | fifo                      | named-pipe      |           |
-    And "file2.txt" is Active
-    When Helix starts with Grove in that Workspace
-    And "file-link" is activated
-    Then Helix shows the "file-link" document
 
   Scenario: Preserve the editor view when activating an open file
     Given a Workspace containing entries
@@ -243,3 +214,25 @@ Feature: Activate files
     And "locked.txt" is activated
     Then Helix shows the "anchor.txt" document
     And Grove does not replace the error with a generic notice
+
+  Rule: With representative links
+
+    Background:
+      Given a Workspace containing entries
+        | kind        | path        | target    |
+        | file        | file2.txt   |           |
+        | file link   | file-link   | file2.txt |
+        | broken link | broken-link | missing   |
+      And "file2.txt" is Active
+
+    Scenario: Ignore activation of a Broken link
+      When Helix starts with Grove in that Workspace
+      And "broken-link" is activated
+      Then Helix shows the "file2.txt" document
+      When the editor receives "i" while Grove is unfocused
+      Then the active Editor view is in Insert mode
+
+    Scenario: Open a File link
+      When Helix starts with Grove in that Workspace
+      And "file-link" is activated
+      Then Helix shows the "file-link" document

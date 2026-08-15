@@ -15,4 +15,4 @@ lint:
 	uv run --locked ruff check tests
 
 test:
-	uv run --locked pytest -n auto tests
+	uv run --locked pytest --import-mode=importlib -n auto tests

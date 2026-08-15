@@ -2,9 +2,9 @@ Feature: Navigate the File tree with the keyboard
 
   Scenario: Leave editor movement to Helix while Grove is unfocused
     Given a Workspace containing entries
-      | kind | path       | target | lines |
-      | file | active.txt |        | 100   |
-      | file | other.txt  |        | 100   |
+      | kind | path       | lines |
+      | file | active.txt | 100   |
+      | file | other.txt  | 100   |
     And "active.txt" is Active
     When Helix starts with Grove in that Workspace
     And the editor receives "j" while Grove is unfocused
@@ -21,7 +21,7 @@ Feature: Navigate the File tree with the keyboard
     And an Active file outside the Workspace
     When Helix starts with Grove in that Workspace
     And Grove is focused
-    Then "workspace" has Cursor
+    Then "Workspace root" has Cursor
     When Grove receives "<key>"
     Then the editor still shows the outside file
     When Grove receives "Down"
@@ -58,7 +58,7 @@ Feature: Navigate the File tree with the keyboard
     And "anchor.txt" is Active
     When Helix starts with Grove in that Workspace
     And Grove is focused
-    And Grove receives Helix's file-picker chord for "target.txt"
+    And Grove receives Helix's file-picker chord and searches for "target"
     Then Helix shows the "target.txt" document
 
   Scenario Outline: Pass modified plain keys to Helix
@@ -165,7 +165,7 @@ Feature: Navigate the File tree with the keyboard
     When Helix starts with Grove in that Workspace
     And the terminal height becomes <height> rows
     And Grove is focused
-    And Grove receives Helix's file-picker chord for "page-39.txt"
+    And Grove receives Helix's file-picker chord and searches for "page-39"
     And Grove is focused
     And Grove receives "PageUp"
     Then Helix shows the "page-39.txt" document
@@ -179,62 +179,62 @@ Feature: Navigate the File tree with the keyboard
 
   Scenario: Expand a directory with Right
     Given a Workspace containing entries
-      | kind      | path              | target | lines |
-      | file      | anchor.txt        |        |       |
-      | directory | folder            |        |       |
-      | file      | folder/inside.txt |        |       |
+      | kind      | path              |
+      | file      | anchor.txt        |
+      | directory | folder            |
+      | file      | folder/inside.txt |
     And "anchor.txt" is Active
     When Helix starts with Grove in that Workspace
     And Grove is focused
     And Grove receives "Up"
     And Grove receives "Right"
-    Then the File tree shows "inside.txt"
+    Then the File tree shows "folder/inside.txt"
     And "folder" has Cursor
 
   Scenario: Collapse an expanded directory with Left
     Given a Workspace containing entries
-      | kind      | path              | target | lines |
-      | file      | anchor.txt        |        |       |
-      | directory | folder            |        |       |
-      | file      | folder/inside.txt |        |       |
+      | kind      | path              |
+      | file      | anchor.txt        |
+      | directory | folder            |
+      | file      | folder/inside.txt |
     And "anchor.txt" is Active
     When Helix starts with Grove in that Workspace
     And Grove is focused
     And Grove receives "Up"
     And Grove receives "Enter"
     And Grove receives "Left"
-    Then the File tree does not show "inside.txt"
+    Then the File tree does not show "folder/inside.txt"
 
   Scenario: Collapse an expanded directory with Enter
     Given a Workspace containing entries
-      | kind      | path              | target | lines |
-      | file      | anchor.txt        |        |       |
-      | directory | folder            |        |       |
-      | file      | folder/inside.txt |        |       |
+      | kind      | path              |
+      | file      | anchor.txt        |
+      | directory | folder            |
+      | file      | folder/inside.txt |
     And "anchor.txt" is Active
     When Helix starts with Grove in that Workspace
     And Grove is focused
     And Grove receives "Up"
     And Grove receives "Enter"
-    And the File tree shows "inside.txt"
-    And Grove receives "Enter"
-    Then the File tree does not show "inside.txt"
+    Then the File tree shows "folder/inside.txt"
+    When Grove receives "Enter"
+    Then the File tree does not show "folder/inside.txt"
 
   Scenario: Leave a collapsed directory unchanged with Left
     Given a Workspace containing entries
-      | kind      | path              | target | lines |
-      | file      | anchor.txt        |        |       |
-      | directory | folder            |        |       |
-      | file      | folder/inside.txt |        |       |
+      | kind      | path              |
+      | file      | anchor.txt        |
+      | directory | folder            |
+      | file      | folder/inside.txt |
     And "anchor.txt" is Active
     When Helix starts with Grove in that Workspace
     And Grove is focused
     And Grove receives "Up"
     And Grove receives "Right"
-    And the File tree shows "inside.txt"
+    Then the File tree shows "folder/inside.txt"
+    When Grove receives "Left"
     And Grove receives "Left"
-    And Grove receives "Left"
-    Then the File tree does not show "inside.txt"
+    Then the File tree does not show "folder/inside.txt"
     And "folder" has Cursor
 
   Scenario: Return control to Helix with Escape
@@ -258,8 +258,8 @@ Feature: Navigate the File tree with the keyboard
     And Grove is focused
     And Grove receives "Down"
     And "aardvark.txt" is created
-    And the File tree shows "aardvark.txt"
-    And Grove receives "Enter"
+    Then the File tree shows "aardvark.txt"
+    When Grove receives "Enter"
     Then Helix shows the "target.txt" document
 
   Scenario: Reset a missing Cursor to the Workspace root after refresh

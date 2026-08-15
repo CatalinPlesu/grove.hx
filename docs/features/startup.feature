@@ -11,10 +11,10 @@ Feature: Start Grove
 
   Scenario: Start Docked without taking editor focus
     Given a Workspace containing entries
-      | kind      | path              | target | lines |
-      | file      | anchor.txt        |        |       |
-      | directory | folder            |        |       |
-      | file      | folder/inside.txt |        |       |
+      | kind      | path              |
+      | file      | anchor.txt        |
+      | directory | folder            |
+      | file      | folder/inside.txt |
     And "anchor.txt" is Active
     When Helix starts with Grove in that Workspace
     Then the File tree shows "anchor.txt"

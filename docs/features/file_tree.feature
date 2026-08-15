@@ -35,18 +35,18 @@ Feature: Keep the File tree current
 
   Scenario: Show supported entries without following links
     Given a Workspace containing entries
-      | kind                      | path            | target    | lines |
-      | file                      | file2.txt       |           |       |
-      | file                      | file02.txt      |           |       |
-      | file                      | file10.txt      |           |       |
-      | file                      | .env            |           |       |
-      | directory                 | adir            |           |       |
-      | directory                 | .git            |           |       |
-      | file                      | .git/hidden.txt |           |       |
-      | file link                 | file-link       | file2.txt |       |
-      | unfollowed directory link | directory-link  | adir      |       |
-      | broken link               | broken-link     | missing   |       |
-      | fifo                      | named-pipe      |           |       |
+      | kind                      | path            | target    |
+      | file                      | file2.txt       |           |
+      | file                      | file02.txt      |           |
+      | file                      | file10.txt      |           |
+      | file                      | .env            |           |
+      | directory                 | adir            |           |
+      | directory                 | .git            |           |
+      | file                      | .git/hidden.txt |           |
+      | file link                 | file-link       | file2.txt |
+      | unfollowed directory link | directory-link  | adir      |
+      | broken link               | broken-link     | missing   |
+      | fifo                      | named-pipe      |           |
     And "file2.txt" is Active
     When Helix starts with Grove in that Workspace
     Then File tree rows appear in order
@@ -72,7 +72,7 @@ Feature: Keep the File tree current
     And "anchor.txt" is Active
     When Helix starts with Grove in that Workspace
     Then "changing-link" uses the Broken link icon
-    When the external link target appears
+    When "../outside/target.txt" appears as a file
     Then "changing-link" uses the File link icon
     When "changing-link" is activated
     Then Helix shows the "changing-link" document
@@ -90,7 +90,8 @@ Feature: Keep the File tree current
     And Grove receives "Up"
     And Grove receives "Enter"
     Then "locked" remains expanded
-    And the editor remains active
+    When the editor receives "i" while Grove is unfocused
+    Then the active Editor view is in Insert mode
 
   Scenario: Recover an expanded directory after it becomes readable
     Given a Workspace containing entries

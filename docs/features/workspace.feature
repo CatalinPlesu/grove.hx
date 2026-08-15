@@ -13,6 +13,7 @@ Feature: Follow Helix's current Workspace
     And Helix runs "cd" for Workspace "second"
     Then the File tree root is "second"
     And the File tree shows "aaa-scanned.txt"
+    But the File tree does not show "old.txt"
 
   Scenario: Scope Git status to the current Workspace
     Given a Workspace named "first" containing entries
@@ -30,7 +31,7 @@ Feature: Follow Helix's current Workspace
     Then the File tree root is "second"
     And "shared.txt" uses the theme text foreground
 
-  Scenario Outline: Replace the Workspace after a directory command
+  Scenario: Replace the Workspace after push-directory
     Given a Workspace named "first" containing entries
       | path    |
       | old.txt |
@@ -39,15 +40,10 @@ Feature: Follow Helix's current Workspace
       | path    |
       | new.txt |
     When Helix starts with Grove in Workspace "first"
-    And Helix runs "<command>" for Workspace "second"
+    And Helix runs "push-directory" for Workspace "second"
     Then the File tree root is "second"
     And the File tree shows "new.txt"
     But the File tree does not show "old.txt"
-
-    Examples:
-      | command        |
-      | cd             |
-      | push-directory |
 
   Scenario: Return to the previous Workspace
     Given a Workspace named "first" containing entries
@@ -60,7 +56,7 @@ Feature: Follow Helix's current Workspace
     When Helix starts with Grove in Workspace "first"
     And Helix runs "push-directory" for Workspace "second"
     Then the File tree root is "second"
-    When Helix runs "pop-directory"
+    When Helix runs "pop-directory" for Workspace "first"
     Then the File tree root is "first"
     And the File tree shows "old.txt"
     But the File tree does not show "new.txt"

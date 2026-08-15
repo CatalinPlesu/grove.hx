@@ -1,27 +1,38 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path, PurePath
 
 
 @dataclass(frozen=True)
-class Entry:
-    kind: str
+class EntrySpec:
     path: PurePath
-    target: PurePath | None
-    lines: int
+    kind: str = "file"
+    target: PurePath | None = None
+    lines: int = 1
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "path", _safe_path(str(self.path), "path"))
+        if self.target is not None:
+            object.__setattr__(self, "target", _optional_path(str(self.target)))
 
 
 @dataclass
-class Workspace:
+class WorkspaceFixture:
     root: Path
     paths: set[PurePath] = field(default_factory=set)
     directories: set[PurePath] = field(default_factory=set)
+    _permissions: dict[Path, int] = field(default_factory=dict, init=False, repr=False)
 
     @classmethod
-    def create(cls, root: Path, table: list[list[str]]) -> Workspace:
-        entries = _entries(table)
+    def create(
+        cls,
+        root: Path,
+        entries: Iterable[EntrySpec],
+    ) -> WorkspaceFixture:
+        entries = tuple(entries)
         directories = {entry.path for entry in entries if entry.kind == "directory"} | {
             parent
             for entry in entries
@@ -56,9 +67,12 @@ class Workspace:
 
         return cls(root, {entry.path for entry in entries} | directories, directories)
 
-    def document_path(self, name: str) -> Path:
+    def path(self, name: str) -> Path:
         path = _safe_path(name, "path")
-        document = self.root.joinpath(*path.parts)
+        return self.root.joinpath(*path.parts)
+
+    def document_path(self, name: str) -> Path:
+        document = self.path(name)
         if not document.is_file():
             raise AssertionError(f'Workspace document is not a file: "{name}"')
         return document
@@ -109,50 +123,30 @@ class Workspace:
         }
 
     def set_unreadable(self, name: str) -> None:
-        path = self.root / name
+        path = self.path(name)
         if not path.exists():
             raise AssertionError(f'Workspace entry does not exist: "{name}"')
+        self._permissions.setdefault(path, path.stat().st_mode)
         path.chmod(0)
 
     def set_readable(self, name: str) -> None:
         path = self.root / name
         path.chmod(0o700 if path.is_dir() else 0o600)
 
-    def create_external_target(self) -> None:
-        target = self.root.parent / "outside" / "target.txt"
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text("target\n", encoding="utf-8")
-
     def set_root_unreadable(self) -> None:
+        self._permissions.setdefault(self.root, self.root.stat().st_mode)
         self.root.chmod(0o100)
 
-    def set_root_readable(self) -> None:
-        self.root.chmod(0o700)
+    def close(self) -> None:
+        for path, mode in self._permissions.items():
+            if path.exists():
+                path.chmod(mode)
+        self._permissions.clear()
 
     def _remember_directories(self, path: PurePath) -> None:
         parents = {parent for parent in path.parents if parent != PurePath(".")}
         self.directories.update(parents)
         self.paths.update(parents)
-
-
-def _entries(table: list[list[str]]) -> tuple[Entry, ...]:
-    result: list[Entry] = []
-    header, *rows = table
-    for row in rows:
-        record = dict(zip(header, row))
-        count = int(record.get("count") or "1")
-        template = record["path"]
-        for index in range(count):
-            path = template.format(index) if count > 1 else template
-            result.append(
-                Entry(
-                    kind=record.get("kind") or "file",
-                    path=_safe_path(path, "path"),
-                    target=_optional_path(record.get("target") or ""),
-                    lines=int(record.get("lines") or "1"),
-                )
-            )
-    return tuple(result)
 
 
 def _optional_path(value: str) -> PurePath | None:

@@ -1,26 +1,23 @@
 import json
-import os
-import subprocess
-from pathlib import Path, PurePath
+from contextlib import ExitStack
+from pathlib import Path
 
 import pytest
 from libtmux.server import Server
-from pytest import FixtureRequest
 from pytest_bdd import given, parsers, when
 
-from tests.support.host import (
-    DEFAULT_STARTUP,
-    TEST_THEME,
-    Helix,
-    start,
-)
-from tests.support.waiting import eventually
-from tests.support.workspace import Workspace
+from tests.support.git import GitFixture, GitStatusSpec
+from tests.support.grove import GroveDriver
+from tests.support.grove_launch import start_grove
+from tests.support.helix import TEST_THEME, HelixSandbox
+from tests.support.workspace import EntrySpec, WorkspaceFixture
+
+REPOSITORY = Path(__file__).parents[3]
 
 
 @pytest.fixture
-def grove_start_options() -> tuple[str, ...]:
-    return ()
+def grove_settings() -> dict[str, str]:
+    return {}
 
 
 @pytest.fixture
@@ -28,36 +25,29 @@ def helix_theme() -> str:
     return TEST_THEME
 
 
-@given("Grove settings", target_fixture="grove_start_options")
-def configured_grove(datatable: list[list[str]]) -> tuple[str, ...]:
+@given("Grove settings", target_fixture="grove_settings")
+def configured_grove(datatable: list[list[str]]) -> dict[str, str]:
     values = {"enabled": "#t", "disabled": "#f", "left": "'left", "right": "'right"}
-    return tuple(
-        f"#:{setting} {values.get(value, value)}" for setting, value in datatable[1:]
-    )
+    return {setting: values.get(value, value) for setting, value in datatable[1:]}
 
 
-@when("Helix starts with Grove in that Workspace", target_fixture="helix")
+@when("Helix starts with Grove in that Workspace", target_fixture="grove")
 def start_helix(
-    tmp_path: Path,
+    resources: ExitStack,
     server: Server,
-    request: FixtureRequest,
-    workspace: Workspace,
+    helix_sandbox: HelixSandbox,
+    workspace: WorkspaceFixture,
     active_file: Path | None,
-    grove_start_options: tuple[str, ...],
+    grove_settings: dict[str, str],
     helix_theme: str,
-) -> Helix:
-    grove_startup = (
-        f"(grove-start! {' '.join(grove_start_options)})"
-        if grove_start_options
-        else DEFAULT_STARTUP
-    )
+) -> GroveDriver:
     return _launch(
-        tmp_path,
+        resources,
+        helix_sandbox,
         server,
-        request,
         workspace,
         active_file,
-        startup=grove_startup,
+        settings=grove_settings,
         theme=helix_theme,
     )
 
@@ -112,20 +102,20 @@ def theme_with_whitespace_guides() -> str:
 
 @when(
     parsers.parse('Helix starts with Grove in Workspace "{workspace_name}"'),
-    target_fixture="helix",
+    target_fixture="grove",
 )
 def start_helix_in_named_workspace(
-    tmp_path: Path,
+    resources: ExitStack,
     server: Server,
-    request: FixtureRequest,
-    workspaces: dict[str, Workspace],
+    helix_sandbox: HelixSandbox,
+    workspaces: dict[str, WorkspaceFixture],
     active_file: Path | None,
     workspace_name: str,
-) -> Helix:
+) -> GroveDriver:
     return _launch(
-        tmp_path,
+        resources,
+        helix_sandbox,
         server,
-        request,
         workspaces[workspace_name],
         active_file,
     )
@@ -135,19 +125,20 @@ def start_helix_in_named_workspace(
     parsers.parse(
         'Helix starts with Grove ready for an Active file change to "{name}"'
     ),
-    target_fixture="helix",
+    target_fixture="grove",
 )
 def start_helix_ready_for_active_file_change(
+    resources: ExitStack,
     tmp_path: Path,
     server: Server,
-    request: FixtureRequest,
-    workspace: Workspace,
+    helix_sandbox: HelixSandbox,
+    workspace: WorkspaceFixture,
     active_file: Path | None,
     name: str,
-) -> Helix:
+) -> GroveDriver:
     target = json.dumps(str(workspace.document_path(name)))
     signal = json.dumps(str(tmp_path / "host-file-change"))
-    startup = (
+    init = (
         '(require "helix/misc.scm")\n'
         '(require (prefix-in helix. "helix/commands.scm"))\n'
         "(define (host-file-change-ready?)\n"
@@ -157,65 +148,65 @@ def start_helix_ready_for_active_file_change(
         f"      (helix.open {target})\n"
         "      (enqueue-thread-local-callback-with-delay\n"
         "       20 await-host-file-change)))\n"
-        f"{DEFAULT_STARTUP}\n"
         "(enqueue-thread-local-callback-with-delay\n"
         " 20 await-host-file-change)"
     )
     return _launch(
-        tmp_path,
+        resources,
+        helix_sandbox,
         server,
-        request,
         workspace,
         active_file,
-        startup=startup,
+        init=init,
     )
 
 
 def _launch(
-    tmp_path: Path,
+    resources: ExitStack,
+    helix_sandbox: HelixSandbox,
     server: Server,
-    request: FixtureRequest,
-    workspace: Workspace,
+    workspace: WorkspaceFixture,
     active_file: Path | None,
     *,
-    startup: str = DEFAULT_STARTUP,
+    settings: dict[str, str] | None = None,
     theme: str = TEST_THEME,
-) -> Helix:
-    helix = start(
-        tmp_path / "host",
+    init: str = "",
+) -> GroveDriver:
+    grove = start_grove(
+        helix_sandbox,
+        REPOSITORY,
         server,
         workspace,
         active_file=active_file,
-        startup=startup,
+        settings=settings,
         theme=theme,
+        init=init,
     )
-    request.addfinalizer(helix.close)
-    eventually(
-        helix,
-        lambda screen: (
-            None
-            if screen.editor_mode == "Normal" and screen.rail is not None
-            else "Helix and Grove did not finish startup"
-        ),
-    )
-    return helix
+    resources.callback(grove.close)
+    return grove
 
 
 @given(
     "a Workspace containing entries",
     target_fixture="workspace",
 )
-def workspace_with_entries(tmp_path: Path, datatable: list[list[str]]) -> Workspace:
-    return Workspace.create(tmp_path / "workspace", datatable)
+def workspace_with_entries(
+    resources: ExitStack,
+    tmp_path: Path,
+    datatable: list[list[str]],
+) -> WorkspaceFixture:
+    workspace = WorkspaceFixture.create(tmp_path / "workspace", _entries(datatable))
+    resources.callback(workspace.close)
+    return workspace
 
 
 @given(parsers.parse('"{name}" is Active'), target_fixture="active_file")
-def select_active_file(workspace: Workspace, name: str) -> Path:
+def select_active_file(workspace: WorkspaceFixture, name: str) -> Path:
     return workspace.document_path(name)
 
 
 @given("an Active file outside the Workspace", target_fixture="active_file")
-def select_active_file_outside_workspace(workspace: Workspace) -> Path:
+def select_active_file_outside_workspace(workspace: WorkspaceFixture) -> Path:
     outside = workspace.root.parent / "outside.txt"
     outside.write_text("outside\n", encoding="utf-8")
     return outside
@@ -223,12 +214,15 @@ def select_active_file_outside_workspace(workspace: Workspace) -> Path:
 
 @given(parsers.parse('a Workspace named "{name}" containing entries'))
 def named_workspace_with_entries(
+    resources: ExitStack,
     tmp_path: Path,
-    workspaces: dict[str, Workspace],
+    workspaces: dict[str, WorkspaceFixture],
     name: str,
     datatable: list[list[str]],
 ) -> None:
-    workspaces[name] = Workspace.create(tmp_path / name, datatable)
+    workspace = WorkspaceFixture.create(tmp_path / name, _entries(datatable))
+    resources.callback(workspace.close)
+    workspaces[name] = workspace
 
 
 @given(
@@ -236,7 +230,7 @@ def named_workspace_with_entries(
     target_fixture="active_file",
 )
 def select_named_active_file(
-    workspaces: dict[str, Workspace],
+    workspaces: dict[str, WorkspaceFixture],
     workspace_name: str,
     name: str,
 ) -> Path:
@@ -245,7 +239,7 @@ def select_named_active_file(
 
 @given(parsers.parse('Git tracks "{name}" as {status} in Workspace "{workspace_name}"'))
 def named_workspace_git_status(
-    workspaces: dict[str, Workspace],
+    workspaces: dict[str, WorkspaceFixture],
     workspace_name: str,
     name: str,
     status: str,
@@ -253,185 +247,94 @@ def named_workspace_git_status(
     workspace = workspaces[workspace_name]
     if status not in {"clean", "modified"}:
         raise ValueError(f"Unsupported Git test status: {status!r}")
-    _report_git_statuses(workspace, [(name, status, "")])
+    GitFixture(workspace).report([GitStatusSpec(name, status)])
 
 
 @given(parsers.parse('"{name}" is unreadable'))
 @when(parsers.parse('"{name}" becomes unreadable'))
 def make_entry_unreadable(
-    workspace: Workspace,
-    request: FixtureRequest,
+    workspace: WorkspaceFixture,
     name: str,
 ) -> None:
     workspace.set_unreadable(name)
-    request.addfinalizer(lambda: workspace.set_readable(name))
 
 
 @when(parsers.parse('"{name}" is created'))
-def create_workspace_file(workspace: Workspace, name: str) -> None:
+def create_workspace_file(workspace: WorkspaceFixture, name: str) -> None:
     workspace.create_file(name)
 
 
 @when(parsers.parse('"{name}" is deleted'))
-def delete_workspace_file(workspace: Workspace, name: str) -> None:
+def delete_workspace_file(workspace: WorkspaceFixture, name: str) -> None:
     workspace.delete(name)
 
 
-@when("the external link target appears")
-def create_external_link_target(workspace: Workspace) -> None:
-    workspace.create_external_target()
+@when(parsers.parse('"{name}" appears as a file'))
+def create_external_link_target(workspace: WorkspaceFixture, name: str) -> None:
+    target = workspace.root / name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("target\n", encoding="utf-8")
 
 
 @when(parsers.parse('"{name}" becomes readable'))
-def entry_becomes_readable(workspace: Workspace, name: str) -> None:
+def entry_becomes_readable(workspace: WorkspaceFixture, name: str) -> None:
     workspace.set_readable(name)
 
 
 @given("Git reports statuses")
 def git_reports_statuses(
-    workspace: Workspace,
+    workspace: WorkspaceFixture,
     datatable: list[list[str]],
 ) -> None:
-    _report_git_statuses(workspace, _git_status_records(datatable))
-
-
-def _report_git_statuses(
-    workspace: Workspace,
-    records: list[tuple[str, str, str]],
-) -> None:
-    for name, status, _source in records:
-        if status == "created":
-            workspace.delete(name)
-
-    ignored = [
-        f"{name}/" if PurePath(name) in workspace.directories else name
-        for name, status, _source in records
-        if status == "ignored"
-    ]
-    if ignored:
-        workspace.create_file(".gitignore", "".join(f"{name}\n" for name in ignored))
-
-    configuration = (
-        ("status.renames", "copies")
-        if any(status == "copied" for _name, status, _source in records)
-        else None
-    )
-    _initialize_git(workspace.root, configuration=configuration)
-
-    conflicts = [name for name, status, _source in records if status == "conflict"]
-    if conflicts:
-        _create_git_conflicts(workspace, conflicts)
-
-    for name, status, source in records:
-        _apply_git_status(workspace, name, status, source)
-
-
-def _git_status_records(
-    table: list[list[str]],
-) -> list[tuple[str, str, str]]:
-    header, *rows = table
+    header, *rows = datatable
     records = (dict(zip(header, row)) for row in rows)
-    return [
-        (record["path"], record["status"], record.get("source", ""))
-        for record in records
-    ]
-
-
-def _create_git_conflicts(workspace: Workspace, paths: list[str]) -> None:
-    _git(workspace.root, "checkout", "-qb", "other")
-    for path in paths:
-        workspace.create_file(path, "other\n")
-    _git(workspace.root, "commit", "-qam", "other")
-    _git(workspace.root, "checkout", "-q", "main")
-    for path in paths:
-        workspace.create_file(path, "main\n")
-    _git(workspace.root, "commit", "-qam", "main")
-    _git(workspace.root, "merge", "other", check=False)
-
-
-def _apply_git_status(
-    workspace: Workspace,
-    name: str,
-    status: str,
-    source: str,
-) -> None:
-    if status in {"clean", "ignored", "conflict"}:
-        return
-    if status == "modified":
-        path = workspace.root.joinpath(*PurePath(name).parts)
-        if path.is_symlink():
-            target = os.readlink(path)
-            path.unlink()
-            os.symlink(f"{target}.modified", path)
-        else:
-            with path.open("a", encoding="utf-8") as file:
-                file.write("modified\n")
-    elif status == "deleted":
-        workspace.delete(name)
-    elif status == "created":
-        workspace.create_file(name, "created\n")
-    elif status == "renamed":
-        workspace.rename(source, name)
-        _git(workspace.root, "add", source, name)
-    elif status == "copied":
-        content = (workspace.root / source).read_text(encoding="utf-8")
-        workspace.create_file(name, content)
-        workspace.create_file(source, "changed source\n")
-        _git(workspace.root, "add", name, source)
-    elif status == "type changed":
-        workspace.delete(name)
-        workspace.create_link(name, source)
+    GitFixture(workspace).report(
+        [
+            GitStatusSpec(record["path"], record["status"], record.get("source"))
+            for record in records
+        ]
+    )
 
 
 @given(parsers.parse('Git tracks "{name}"'))
-def git_tracks_path(workspace: Workspace, name: str) -> None:
-    _initialize_git(workspace.root, name)
+def git_tracks_path(workspace: WorkspaceFixture, name: str) -> None:
+    GitFixture(workspace).initialize(name)
 
 
 @given(parsers.parse('"{name}" is a Git repository'))
-def directory_is_git_repository(workspace: Workspace, name: str) -> None:
+def directory_is_git_repository(workspace: WorkspaceFixture, name: str) -> None:
     root = workspace.root / name
     if not root.is_dir():
         raise ValueError(f'Git repository directory does not exist: "{name}"')
-    _initialize_git(root)
+    GitFixture(workspace).initialize(root=root)
 
 
 @when("the Workspace root becomes unreadable")
 def workspace_root_becomes_unreadable(
-    workspace: Workspace,
-    request: FixtureRequest,
+    workspace: WorkspaceFixture,
 ) -> None:
     workspace.set_root_unreadable()
-    request.addfinalizer(workspace.set_root_readable)
 
 
 @when("Git metadata becomes unavailable")
-def git_metadata_becomes_unavailable(workspace: Workspace) -> None:
-    (workspace.root / ".git").rename(workspace.root.parent / "git-metadata")
+def git_metadata_becomes_unavailable(workspace: WorkspaceFixture) -> None:
+    GitFixture(workspace).hide_metadata()
 
 
-def _initialize_git(
-    root: Path,
-    *paths: str,
-    configuration: tuple[str, str] | None = None,
-) -> None:
-    _git(root, "init", "-q", "-b", "main")
-    _git(root, "config", "user.name", "Grove Test")
-    _git(root, "config", "user.email", "grove@example.invalid")
-    if configuration is not None:
-        _git(root, "config", *configuration)
-    _git(root, "add", *(paths or (".",)))
-    _git(root, "commit", "-qm", "base")
-
-
-def _git(
-    root: Path,
-    *arguments: str,
-    check: bool = True,
-) -> None:
-    subprocess.run(
-        ["git", "-C", str(root), *arguments],
-        check=check,
-        capture_output=True,
-        text=True,
-    )
+def _entries(table: list[list[str]]) -> list[EntrySpec]:
+    header, *rows = table
+    entries = []
+    for row in rows:
+        record = dict(zip(header, row))
+        count = int(record.get("count") or "1")
+        for index in range(count):
+            path = record["path"].format(index) if count > 1 else record["path"]
+            entries.append(
+                EntrySpec(
+                    Path(path),
+                    record.get("kind") or "file",
+                    Path(record["target"]) if record.get("target") else None,
+                    int(record.get("lines") or "1"),
+                )
+            )
+    return entries

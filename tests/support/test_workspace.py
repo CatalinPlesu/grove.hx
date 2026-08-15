@@ -2,14 +2,14 @@ from pathlib import Path, PurePath
 
 import pytest
 
-from tests.support.workspace import Workspace
+from tests.support.workspace import EntrySpec, WorkspaceFixture
 
 
 def test_unsafe_workspace_path_is_rejected_before_io(tmp_path: Path) -> None:
     root = tmp_path / "workspace"
 
     with pytest.raises(ValueError):
-        Workspace.create(root, [["path"], ["../outside.txt"]])
+        WorkspaceFixture.create(root, [EntrySpec(path=PurePath("../outside.txt"))])
 
     assert not root.exists()
 
@@ -17,9 +17,9 @@ def test_unsafe_workspace_path_is_rejected_before_io(tmp_path: Path) -> None:
 def test_created_file_records_its_path_and_implicit_directories(
     tmp_path: Path,
 ) -> None:
-    workspace = Workspace.create(
+    workspace = WorkspaceFixture.create(
         tmp_path / "workspace",
-        [["path"], ["anchor.txt"]],
+        [EntrySpec(PurePath("anchor.txt"))],
     )
 
     workspace.create_file("outer/inner/created.txt")
@@ -37,9 +37,9 @@ def test_created_file_records_its_path_and_implicit_directories(
 
 
 def test_deleted_path_remains_known(tmp_path: Path) -> None:
-    workspace = Workspace.create(
+    workspace = WorkspaceFixture.create(
         tmp_path / "workspace",
-        [["path"], ["target.txt"]],
+        [EntrySpec(PurePath("target.txt"))],
     )
 
     workspace.delete("target.txt")
@@ -49,9 +49,9 @@ def test_deleted_path_remains_known(tmp_path: Path) -> None:
 
 
 def test_created_link_records_its_visible_path(tmp_path: Path) -> None:
-    workspace = Workspace.create(
+    workspace = WorkspaceFixture.create(
         tmp_path / "workspace",
-        [["path"], ["target.txt"]],
+        [EntrySpec(PurePath("target.txt"))],
     )
 
     workspace.create_link("links/visible.txt", "target.txt")
@@ -68,9 +68,9 @@ def test_created_link_records_its_visible_path(tmp_path: Path) -> None:
 
 
 def test_renamed_file_updates_its_known_path(tmp_path: Path) -> None:
-    workspace = Workspace.create(
+    workspace = WorkspaceFixture.create(
         tmp_path / "workspace",
-        [["path"], ["source.txt"]],
+        [EntrySpec(PurePath("source.txt"))],
     )
 
     workspace.rename("source.txt", "nested/destination.txt")
@@ -87,13 +87,16 @@ def test_renamed_file_updates_its_known_path(tmp_path: Path) -> None:
 def test_refresh_rebuilds_paths_without_following_directory_links(
     tmp_path: Path,
 ) -> None:
-    workspace = Workspace.create(
+    workspace = WorkspaceFixture.create(
         tmp_path / "workspace",
         [
-            ["kind", "path", "target"],
-            ["directory", "target", ""],
-            ["file", "target/inside.txt", ""],
-            ["unfollowed directory link", "visible", "target"],
+            EntrySpec(PurePath("target"), kind="directory"),
+            EntrySpec(PurePath("target/inside.txt")),
+            EntrySpec(
+                PurePath("visible"),
+                kind="unfollowed directory link",
+                target=PurePath("target"),
+            ),
         ],
     )
     workspace.paths.clear()
