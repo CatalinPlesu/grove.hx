@@ -1,6 +1,6 @@
-(require (prefix-in git. "../../domain/git.scm"))
+(provide parse change-path change-status)
 
-(provide parse)
+(struct change (path status))
 
 (define (strip-terminal-lf text)
   (define text-length (string-length text))
@@ -30,31 +30,31 @@
     [(code-contains? code #\M) 'modified]
     [else #f]))
 
-(define (workspace-id prefix path)
+(define (relative-path prefix path)
   (and (starts-with? path prefix)
     (substring path (string-length prefix) (string-length path))))
 
-(define (parse-records output workspace-prefix)
-  (let loop ([records (split-many output "\0")] [path-statuses '()])
+(define (parse-records output directory-prefix)
+  (let loop ([records (split-many output "\0")] [changes '()])
     (cond
-      [(null? records) (reverse path-statuses)]
+      [(null? records) (reverse changes)]
       [(string=? (car records) "")
         (if (null? (cdr records))
-          (reverse path-statuses)
+          (reverse changes)
           #f)]
       [else
         (define record (car records))
         (define code (substring record 0 2))
         (define raw-path (substring record 3 (string-length record)))
         (define directory? (ends-with? raw-path "/"))
-        (define normalized
+        (define normalized-path
           (if
             directory?
             (substring raw-path 0 (- (string-length raw-path) 1))
             raw-path))
-        (define id (workspace-id workspace-prefix normalized))
+        (define path (relative-path directory-prefix normalized-path))
         (cond
-          [(not id) #f]
+          [(not path) #f]
           [(source-bearing? code)
             ; Porcelain -z puts a discarded source path after each rename or copy.
             (define status (decode-status code))
@@ -64,20 +64,20 @@
               (not (string=? (car (cdr records)) ""))
               (loop
                 (cdr (cdr records))
-                (cons (git.path-status id status) path-statuses)))]
+                (cons (change path status) changes)))]
           [(string=? code "!!")
             (loop
               (cdr records)
               (cons
-                (git.path-status
-                  id
+                (change
+                  path
                   (if directory? 'ignored-tree 'ignored))
-                path-statuses))]
+                changes))]
           [else
             (define status (decode-status code))
             (and status
               (loop (cdr records)
-                (cons (git.path-status id status) path-statuses)))])])))
+                (cons (change path status) changes)))])])))
 
-(define (parse output workspace-prefix)
-  (parse-records output (strip-terminal-lf workspace-prefix)))
+(define (parse output directory-prefix)
+  (parse-records output (strip-terminal-lf directory-prefix)))
