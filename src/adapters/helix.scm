@@ -326,9 +326,6 @@
 
 (define (start-runtime! side width icons? guides?)
   (set! *model* (model.init side width icons? guides?))
-  (set! *latest-frame* #f)
-  (set! *input-state* #f)
-  (set! *focus-next-frame?* #f)
   (hooks.install! dispatch!)
   (component.install! side render-current! handle-event!)
   (subscribe-to-refresh!)
