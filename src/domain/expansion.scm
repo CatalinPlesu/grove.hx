@@ -5,7 +5,8 @@
   expand
   expand-ancestors
   collapse-subtree
-  prune)
+  prune
+  visible)
 
 (struct expansion-value (paths))
 
@@ -68,3 +69,11 @@
       (lambda (directory-id)
         (valid? file-tree expansion directory-id))
       (paths expansion))))
+
+(define (visible expansion file-tree)
+  (filter
+    (lambda (entry)
+      (all-ancestors-expanded?
+        expansion
+        (path.ancestor-ids (tree.entry-id entry))))
+    file-tree))

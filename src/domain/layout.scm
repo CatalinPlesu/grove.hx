@@ -1,4 +1,5 @@
-(require (prefix-in rows. "rows.scm"))
+(require (prefix-in tree. "tree.scm"))
+(require (prefix-in path. "path.scm"))
 
 (provide geometry geometry-width
   resolve
@@ -12,7 +13,8 @@
   side
   pane-slots
   ordinary-capacity
-  slot-row
+  row-id-at
+  slot-entry
   slot-pinned?
   rail-x
   rail-part-at
@@ -23,12 +25,11 @@
   rail-page-amount)
 
 (struct geometry-value (x y width height))
-(struct slot-value (row pinned?))
+(struct slot-value (entry pinned?))
 (struct layout-value
-  (rows geometry side width
+  (entries geometry side width
     anchor
     pane-slots
-    ordinary-rows
     ordinary-capacity
     start
     maximum-start
@@ -43,7 +44,7 @@
 (define side layout-value-side)
 (define pane-slots layout-value-pane-slots)
 (define ordinary-capacity layout-value-ordinary-capacity)
-(define slot-row slot-value-row)
+(define slot-entry slot-value-entry)
 (define slot-pinned? slot-value-pinned?)
 (define maximum-start layout-value-maximum-start)
 
@@ -81,13 +82,10 @@
 (define (clamp value lower upper)
   (max lower (min upper value)))
 
-(define (slice values start count)
-  (take (list-drop values start) count))
-
 ; Keep slot construction and concatenation direct.
 ; ADR 0001 covers Steel JIT corruption.
-(define (row-slots current-rows pinned?)
-  (let loop ([remaining current-rows] [result '()])
+(define (entry-slots entries pinned?)
+  (let loop ([remaining entries] [result '()])
     (if
       (null? remaining)
       (reverse result)
@@ -105,37 +103,50 @@
       (car prefix)
       (prepend-all (cdr prefix) suffix))))
 
-(define (ancestor-rows visible-rows anchor-row)
-  (let loop ([ids (rows.row-ancestor-ids anchor-row)] [result '()])
+(define (ancestor-entries visible-entries anchor-entry)
+  (let loop ([ids (path.ancestor-ids (tree.entry-id anchor-entry))]
+             [result '()])
     (if
       (null? ids)
       (reverse result)
-      (let ([row (rows.find visible-rows (car ids))])
+      (let ([entry (tree.find visible-entries (car ids))])
         (loop
           (cdr ids)
-          (if row (cons row result) result))))))
+          (if entry (cons entry result) result))))))
 
-(define (ancestor-stack-size row host-height)
-  (define depth (rows.row-depth row))
+(define (ancestor-stack-size entry host-height)
+  (define depth (path.depth (tree.entry-id entry)))
   (if (< depth host-height) depth 0))
 
-(define (bottom-start-index visible-rows total host-height)
+(define (pinned-entries-at visible-entries index host-height)
+  (define entry (try-list-ref visible-entries index))
+  (if
+    (> (ancestor-stack-size entry host-height) 0)
+    (ancestor-entries visible-entries entry)
+    '()))
+
+(define (capacity-at visible-entries index host-height)
+  (- host-height
+    (length
+      (pinned-entries-at visible-entries index host-height))))
+
+(define (bottom-start-index visible-entries total host-height)
   (define initial (max 0 (- total host-height)))
   (let loop ([candidate initial]
-             [remaining-rows (list-drop visible-rows initial)])
+             [remaining-entries (list-drop visible-entries initial)])
     (define pinned
-      (ancestor-stack-size (car remaining-rows) host-height))
+      (ancestor-stack-size (car remaining-entries) host-height))
     (if
       (<= (+ pinned (- total candidate)) host-height)
       candidate
       (loop
         (+ candidate 1)
-        (cdr remaining-rows)))))
+        (cdr remaining-entries)))))
 
-(define (resolve visible-rows anchor host-geometry requested-width side-value)
+(define (resolve visible-entries anchor host-geometry requested-width side-value)
   (unless
     (and
-      (list? visible-rows)
+      (list? visible-entries)
       (or (not host-geometry) (geometry-value? host-geometry))
       (integer? requested-width)
       (> requested-width 0)
@@ -143,46 +154,53 @@
     (error "invalid Layout"))
   (and
     host-geometry
-    (pair? visible-rows)
+    (pair? visible-entries)
     (> (geometry-height host-geometry) 0)
     (>= (geometry-width host-geometry) (+ requested-width 1))
     (let* ([host-height (geometry-height host-geometry)]
-           [total (length visible-rows)]
+           [total (length visible-entries)]
            [anchor-index
              (or
-               (and anchor (rows.index-of visible-rows anchor))
+               (and anchor (tree.index-of visible-entries anchor))
                0)]
            [maximum-start
-             (bottom-start-index visible-rows total host-height)]
+             (bottom-start-index visible-entries total host-height)]
            [start-index
              (min anchor-index maximum-start)]
-           [anchor-row (rows.at visible-rows start-index)]
+           [anchor-entry (try-list-ref visible-entries start-index)]
            [pinned
-             (if
-               (> (ancestor-stack-size anchor-row host-height) 0)
-               (ancestor-rows visible-rows anchor-row)
-               '())]
+             (pinned-entries-at visible-entries start-index host-height)]
            [capacity (- host-height (length pinned))]
-           [ordinary (slice visible-rows start-index capacity)]
+           [ordinary
+             (take (list-drop visible-entries start-index) capacity)]
            [slots
              (prepend-all
-               (row-slots pinned #t)
-               (row-slots ordinary #f))])
+               (entry-slots pinned #t)
+               (entry-slots ordinary #f))])
       (layout-value
-        visible-rows
+        visible-entries
         host-geometry
         side-value
         requested-width
-        (rows.row-id anchor-row)
+        (tree.entry-id anchor-entry)
         slots
-        ordinary
         capacity
         start-index
         maximum-start
         total))))
 
-(define (row-id-at visible-rows index)
-  (rows.row-id (rows.at visible-rows index)))
+(define (entry-id-at visible-entries index)
+  (tree.entry-id (try-list-ref visible-entries index)))
+
+(define (row-id-at layout row)
+  (define slot
+    (try-list-ref
+      (pane-slots layout)
+      (- row (y layout))))
+  (and
+    slot
+    (not (slot-pinned? slot))
+    (tree.entry-id (slot-entry slot))))
 
 (define (absolute-start layout numerator denominator)
   (quotient
@@ -191,74 +209,53 @@
     denominator))
 
 (define (scroll-by layout amount)
-  (unless
-    (and
-      (layout-value? layout)
-      (integer? amount))
-    (error "invalid Layout scroll"))
   (define next-start
     (clamp
       (+ (layout-value-start layout) amount)
       0
       (maximum-start layout)))
-  (row-id-at (layout-value-rows layout) next-start))
+  (entry-id-at (layout-value-entries layout) next-start))
 
 (define (scroll-to layout numerator denominator)
-  (unless
-    (and
-      (layout-value? layout)
-      (integer? numerator)
-      (integer? denominator)
-      (>= numerator 0)
-      (> denominator 0)
-      (<= numerator denominator))
-    (error "invalid Layout scroll position"))
-  (row-id-at
-    (layout-value-rows layout)
+  (entry-id-at
+    (layout-value-entries layout)
     (clamp
       (absolute-start layout numerator denominator)
       0
       (maximum-start layout))))
 
-(define (ordinary-row? layout id)
+(define (ordinary-span? start capacity target-index)
   (and
-    (layout-value? layout)
-    (rows.find (layout-value-ordinary-rows layout) id)
-    #t))
-
-(define (resolve-at layout candidate-index)
-  (resolve
-    (layout-value-rows layout)
-    (row-id-at (layout-value-rows layout) candidate-index)
-    (layout-value-geometry layout)
-    (layout-value-width layout)
-    (layout-value-side layout)))
+    (>= target-index start)
+    (< target-index (+ start capacity))))
 
 (define (candidate-showing-target layout target-index initial-index)
-  (define visible-rows (layout-value-rows layout))
-  (define target-id (row-id-at visible-rows target-index))
+  (define visible-entries (layout-value-entries layout))
+  (define host-height (height layout))
+  (define limit (maximum-start layout))
   (let loop ([candidate initial-index])
-    (define candidate-layout (resolve-at layout candidate))
+    (define start (min candidate limit))
     (cond
-      [(ordinary-row? candidate-layout target-id)
-        (layout-value-anchor candidate-layout)]
+      [(ordinary-span?
+          start
+          (capacity-at visible-entries start host-height)
+          target-index)
+        (entry-id-at visible-entries start)]
       [(>= candidate target-index)
-        target-id]
+        (entry-id-at visible-entries target-index)]
       [else
         (loop (+ candidate 1))])))
 
 (define (reveal layout id placement)
-  (unless
-    (and
-      (layout-value? layout)
-      (member placement '(nearest first)))
-    (error "invalid Layout reveal"))
   (define target-index
-    (rows.index-of (layout-value-rows layout) id))
+    (tree.index-of (layout-value-entries layout) id))
   (cond
     [(not target-index)
       (layout-value-anchor layout)]
-    [(ordinary-row? layout id)
+    [(ordinary-span?
+        (layout-value-start layout)
+        (layout-value-ordinary-capacity layout)
+        target-index)
       (layout-value-anchor layout)]
     [(equal? placement 'first)
       id]

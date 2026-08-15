@@ -128,7 +128,7 @@
           (lambda ()
             (when (equal? kind 'file)
               (host.open-file! destination 'normal)
-              (dispatch! (model.focus-released))))))]))
+              (dispatch! model.focus-released)))))]))
 
 (define (execute-rename! root source-id destination-id refresh!)
   (define source (path.path-for-id root source-id))

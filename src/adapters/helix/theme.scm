@@ -1,5 +1,4 @@
 (require "helix/components.scm")
-(require (prefix-in resolved. "../../presentation/theme.scm"))
 
 (provide resolve)
 
@@ -46,39 +45,45 @@
   (define visible-background
     (background 'visible-row '("ui.text") pane-background))
   (define (row role default-scopes)
-    (resolved.row-colors
+    (cons
       (background role default-scopes visible-background)
       (foreground role default-scopes visible-foreground)))
 
-  (resolved.resolved-theme
-    pane-background
-    (resolved.row-colors visible-background visible-foreground)
-    (row 'pinned-ancestor-row '("ui.virtual.ruler"))
-    (row 'cursor '("ui.text.focus"))
-    (resolved.row-colors
+  (hash
+    'pane-background pane-background
+    'visible-row (cons visible-background visible-foreground)
+    'pinned-ancestor-row (row 'pinned-ancestor-row '("ui.virtual.ruler"))
+    'cursor (row 'cursor '("ui.text.focus"))
+    'active-file
+    (cons
       (background
         'active-file-background
         (list "ui.bufferline.active" "ui.statusline.active")
         visible-background)
       visible-foreground)
+    'guides-foreground
     (and
       guides?
       (foreground
         'guides-foreground
         '("ui.virtual.indent-guide" "ui.virtual.whitespace")
         Color/Gray))
+    'active-file-mark-foreground
     (foreground 'active-file-mark-foreground '("info") #f)
-    (background 'rail '("ui.menu.scroll") Color/Reset)
-    (foreground 'rail '("ui.menu.scroll") Color/Reset)
+    'rail-track (background 'rail '("ui.menu.scroll") Color/Reset)
+    'rail-thumb (foreground 'rail '("ui.menu.scroll") Color/Reset)
+    'filesystem-error-foreground
     (foreground
       'filesystem-error-foreground
       '("error")
       Color/LightRed)
-    (foreground 'git-conflict-foreground '("error") Color/Magenta)
-    (foreground 'git-deleted-foreground '("diff.minus") Color/Red)
-    (foreground 'git-modified-foreground '("diff.delta") Color/Yellow)
-    (foreground 'git-created-foreground '("diff.plus") Color/Green)
+    'conflict (foreground 'git-conflict-foreground '("error") Color/Magenta)
+    'deleted (foreground 'git-deleted-foreground '("diff.minus") Color/Red)
+    'modified (foreground 'git-modified-foreground '("diff.delta") Color/Yellow)
+    'created (foreground 'git-created-foreground '("diff.plus") Color/Green)
+    'unsaved-mark-foreground
     (foreground 'unsaved-mark-foreground '("info") Color/Cyan)
+    'icon-palette
     (and
       icons?
       (icon-palette-for visible-background visible-foreground))))

@@ -2,11 +2,12 @@
 (require (prefix-in expansion. "expansion.scm"))
 (require (prefix-in path. "path.scm"))
 (require (prefix-in tree. "tree.scm"))
-(require (prefix-in rows. "rows.scm"))
+(require (prefix-in row. "row.scm"))
 
-(provide init update
+(provide init
   root
   resolved-layout
+  row-facts
   icons?
   guides?
   focused?
@@ -24,8 +25,7 @@
   cursor-open-requested
   cursor-mutation-requested
   row-pressed
-  scroll-by-requested
-  scroll-to-requested
+  scroll-anchor-requested
   resize-by-requested
   resize-to-requested
   update-result-model
@@ -47,7 +47,7 @@
   delete-confirmation-command-recursive?)
 
 (struct model-value
-  (root tree git-status unsaved-paths active-path
+  (root tree git-status unsaved-ids active-id
     expansion
     cursor
     anchor
@@ -57,23 +57,7 @@
     icons?
     guides?))
 
-(struct observation-snapshot (root tree git-status active-path))
-(struct host-observed (root active-path))
-(struct focus-frame-observed (snapshot geometry))
-(struct observation-received (snapshot))
-(struct unsaved-observed (paths))
-(struct save-started (path))
-(struct geometry-observed (geometry))
-(struct focus-released ())
-(struct cursor-move-requested (direction))
-(struct cursor-expansion-requested (action))
-(struct cursor-open-requested (mode))
-(struct cursor-mutation-requested (action))
-(struct row-pressed (id))
-(struct scroll-by-requested (amount))
-(struct scroll-to-requested (numerator denominator))
-(struct resize-by-requested (amount))
-(struct resize-to-requested (width))
+(struct observation-snapshot (root tree git-status active-id))
 
 (struct refresh-command ())
 (struct open-file-command (path mode))
@@ -107,9 +91,9 @@
          #:git
          [git-status (model-value-git-status model)]
          #:unsaved
-         [unsaved-paths (model-value-unsaved-paths model)]
+         [unsaved-ids (model-value-unsaved-ids model)]
          #:active
-         [active-path (model-value-active-path model)]
+         [active-id (model-value-active-id model)]
          #:expansion
          [expansion-value (model-value-expansion model)]
          #:cursor
@@ -130,8 +114,8 @@
     root-value
     file-tree
     git-status
-    unsaved-paths
-    active-path
+    unsaved-ids
+    active-id
     expansion-value
     cursor-value
     anchor-value
@@ -144,66 +128,84 @@
 (define (without-focus model)
   (copy-model model #:cursor #f))
 
-(define (visible-rows model)
+(define (visible-entries model)
   (if
     (and (model-value-root model) (model-value-tree model))
-    (rows.build
-      (model-value-root model)
-      (model-value-tree model)
-      (model-value-git-status model)
-      (model-value-unsaved-paths model)
-      (model-value-active-path model)
+    (expansion.visible
       (model-value-expansion model)
-      (model-value-cursor model))
+      (model-value-tree model))
     '()))
 
-(define (root-row-id model)
-  (and
+(define (row-facts model)
+  (row.facts
     (model-value-root model)
-    (rows.workspace-row-id (model-value-root model))))
+    (model-value-git-status model)
+    (model-value-unsaved-ids model)
+    (model-value-active-id model)
+    (model-value-cursor model)
+    (model-value-expansion model)))
 
-(define (resolved-layout-for model current-rows)
+(define (resolved-layout-for model entries)
   (layout.resolve
-    current-rows
+    entries
     (model-value-anchor model)
     (model-value-geometry model)
     (model-value-width model)
     (model-value-side model)))
 
 (define (resolved-layout model)
-  (resolved-layout-for model (visible-rows model)))
+  (resolved-layout-for model (visible-entries model)))
 
 (define (request-refresh model)
   (update-result model (refresh-command)))
 
 (define (init side-value width-value icons-value guides-value)
-  (update-result
-    (model-value
-      #f
-      #f
-      #f
-      '()
-      #f
-      (expansion.empty)
-      #f
-      #f
-      #f
-      width-value
-      side-value
-      icons-value
-      guides-value)
-    (refresh-command)))
+  (model-value
+    #f
+    #f
+    #f
+    '()
+    #f
+    (expansion.empty)
+    #f
+    #f
+    #f
+    width-value
+    side-value
+    icons-value
+    guides-value))
 
-(define (reconciled-anchor old-model new-model new-rows)
+(define (first-surviving-id entries new-ids)
+  (define found
+    (findf
+      (lambda (entry)
+        (member (tree.entry-id entry) new-ids))
+      entries))
+  (and found (tree.entry-id found)))
+
+(define (reconciled-id old-entries new-entries id)
+  (define old-index (and id (tree.index-of old-entries id)))
+  (define new-ids (map tree.entry-id new-entries))
+  (and
+    old-index
+    (or
+      (first-surviving-id
+        (list-drop old-entries (+ old-index 1))
+        new-ids)
+      (first-surviving-id
+        (reverse (take old-entries old-index))
+        new-ids))))
+
+(define (reconciled-anchor old-model new-model new-entries)
   (define old-anchor (model-value-anchor old-model))
   (cond
-    [(and old-anchor (rows.find new-rows old-anchor))
+    [(and old-anchor (tree.find new-entries old-anchor))
       old-anchor]
     [else
-      (define old-rows (visible-rows old-model))
+      (define old-entries (visible-entries old-model))
       (or
-        (rows.reconciled-id old-rows new-rows old-anchor)
-        (root-row-id new-model))]))
+        (reconciled-id old-entries new-entries old-anchor)
+        path.root-id)]))
 
 (define (install-observation-snapshot model snapshot)
   (define root-value (observation-snapshot-root snapshot))
@@ -222,7 +224,9 @@
       #:git
       (observation-snapshot-git-status snapshot)
       #:active
-      (observation-snapshot-active-path snapshot)
+      (observation-snapshot-active-id snapshot)
+      #:unsaved
+      (if changed-root? '() (model-value-unsaved-ids model))
       #:expansion
       (if
         changed-root?
@@ -230,14 +234,14 @@
         (expansion.prune (model-value-expansion model) file-tree))
       #:cursor
       (if changed-root? #f (model-value-cursor model))))
-  (define base-rows (visible-rows base))
+  (define base-entries (visible-entries base))
   (define next-cursor
     (and
       (model-value-cursor base)
       (if
-        (rows.find base-rows (model-value-cursor base))
+        (tree.find base-entries (model-value-cursor base))
         (model-value-cursor base)
-        (root-row-id base))))
+        path.root-id)))
   (copy-model
     base
     #:cursor
@@ -245,27 +249,20 @@
     #:anchor
     (if
       changed-root?
-      (root-row-id base)
-      (reconciled-anchor model base base-rows))))
-
-(define (active-relative-id model)
-  (and
-    (model-value-root model)
-    (path.id-for-path
-      (model-value-root model)
-      (model-value-active-path model))))
+      path.root-id
+      (reconciled-anchor model base base-entries))))
 
 (define (activatable-active-id model)
-  (define relative-id (active-relative-id model))
+  (define active-id (model-value-active-id model))
   (define entry
     (and
-      relative-id
+      active-id
       (model-value-tree model)
-      (tree.find (model-value-tree model) relative-id)))
+      (tree.find (model-value-tree model) active-id)))
   (and
     entry
     (tree.file-kind? (tree.entry-kind entry))
-    relative-id))
+    active-id))
 
 (define (focus-model model)
   (define active-id (activatable-active-id model))
@@ -282,13 +279,7 @@
   (if
     (not focused-layout)
     (without-focus model)
-    (let* ([target-id
-             (if
-               active-id
-               (rows.entry-row-id
-                 (model-value-root model)
-                 active-id)
-               (root-row-id model))]
+    (let* ([target-id (or active-id path.root-id)]
            [next-anchor
              (layout.reveal focused-layout target-id 'first)])
       (copy-model
@@ -298,22 +289,24 @@
         #:anchor
         next-anchor))))
 
-(define (on-host-observed model root-value active-path)
+(define (host-observed model root-value active-id)
   (unless (valid-root? root-value)
     (error "invalid Workspace root"))
   (cond
     [(not (equal? root-value (model-value-root model)))
-      (request-refresh (copy-model model #:active active-path))]
-    [(equal? active-path (model-value-active-path model))
+      (request-refresh model)]
+    [(equal? active-id (model-value-active-id model))
       (update-result model #f)]
     [else
-      (update-result (copy-model model #:active active-path) #f)]))
+      (update-result (copy-model model #:active active-id) #f)]))
 
-(define (on-unsaved-observed model paths)
+(define (unsaved-observed model root-value ids)
   (if
-    (equal? paths (model-value-unsaved-paths model))
+    (or
+      (not (equal? root-value (model-value-root model)))
+      (equal? ids (model-value-unsaved-ids model)))
     (update-result model #f)
-    (update-result (copy-model model #:unsaved paths) #f)))
+    (update-result (copy-model model #:unsaved ids) #f)))
 
 (define (without-path paths removed-path)
   (filter
@@ -321,12 +314,15 @@
       (not (equal? candidate removed-path)))
     paths))
 
-(define (on-save-started model file-path)
-  (request-refresh
-    (copy-model
-      model
-      #:unsaved
-      (without-path (model-value-unsaved-paths model) file-path))))
+(define (save-started model root-value id)
+  (if
+    (not (equal? root-value (model-value-root model)))
+    (update-result model #f)
+    (request-refresh
+      (copy-model
+        model
+        #:unsaved
+        (without-path (model-value-unsaved-ids model) id)))))
 
 (define (install-geometry model geometry-value)
   (if
@@ -344,21 +340,21 @@
 (define (clamp value lower upper)
   (max lower (min upper value)))
 
-(define (cursor-target current-rows cursor delta)
+(define (cursor-target entries cursor delta)
   (define current-index
-    (and cursor (rows.index-of current-rows cursor)))
+    (and cursor (tree.index-of entries cursor)))
   (and
     current-index
-    (rows.at
-      current-rows
+    (try-list-ref
+      entries
       (clamp
         (+ current-index delta)
         0
-        (max 0 (- (length current-rows) 1))))))
+        (max 0 (- (length entries) 1))))))
 
-(define (on-cursor-move-requested model direction)
-  (define current-rows (visible-rows model))
-  (define current-layout (resolved-layout-for model current-rows))
+(define (cursor-move-requested model direction)
+  (define entries (visible-entries model))
+  (define current-layout (resolved-layout-for model entries))
   (if
     (not current-layout)
     (update-result model #f)
@@ -373,13 +369,13 @@
                [else (error "invalid Cursor movement")])]
            [target
              (cursor-target
-               current-rows
+               entries
                (model-value-cursor model)
                delta)])
       (if
         (not target)
         (update-result model #f)
-        (let ([target-id (rows.row-id target)])
+        (let ([target-id (tree.entry-id target)])
           (update-result
             (copy-model
               model
@@ -389,7 +385,8 @@
               (layout.reveal current-layout target-id 'nearest))
             #f))))))
 
-(define (reveal-cursor model current-layout)
+(define (reveal-cursor model)
+  (define current-layout (resolved-layout model))
   (if
     (and current-layout (model-value-cursor model))
     (copy-model
@@ -401,24 +398,18 @@
         'nearest))
     model))
 
-(define (current-cursor-row model current-rows)
+(define (entry-for-id model id)
   (and
-    (model-value-cursor model)
-    (rows.find current-rows (model-value-cursor model))))
+    id
+    (model-value-tree model)
+    (tree.find (model-value-tree model) id)))
 
-(define (stored-id-below? current-rows stored-id directory-id)
-  (define row (and stored-id (rows.find current-rows stored-id)))
-  (and
-    row
-    (path.id-inside? directory-id (rows.row-relative-id row))))
-
-(define (collapse-directory model current-rows row)
-  (define directory-id (rows.row-relative-id row))
-  (define directory-row-id (rows.row-id row))
+(define (collapse-directory model entry)
+  (define directory-id (tree.entry-id entry))
   (define (id-after-collapse stored-id)
     (if
-      (stored-id-below? current-rows stored-id directory-id)
-      directory-row-id
+      (and stored-id (path.id-inside? directory-id stored-id))
+      directory-id
       stored-id))
   (update-result
     (copy-model
@@ -433,8 +424,8 @@
       (id-after-collapse (model-value-anchor model)))
     #f))
 
-(define (expand-directory model row)
-  (define directory-id (rows.row-relative-id row))
+(define (expand-directory model entry)
+  (define directory-id (tree.entry-id entry))
   (if
     (expansion.contains?
       (model-value-expansion model)
@@ -448,86 +439,84 @@
           (model-value-expansion model)
           directory-id)))))
 
-(define (toggle-directory model current-rows row)
+(define (toggle-directory model entry)
   (if
     (expansion.contains?
       (model-value-expansion model)
-      (rows.row-relative-id row))
-    (collapse-directory model current-rows row)
-    (expand-directory model row)))
+      (tree.entry-id entry))
+    (collapse-directory model entry)
+    (expand-directory model entry)))
 
-(define (directory-action model current-rows row action)
+(define (expandable-entry? entry)
+  (and entry (tree.expandable? entry)))
+
+(define (directory-action model entry action)
   (if
-    (not (and row (rows.row-expandable? row)))
+    (not (expandable-entry? entry))
     (update-result model #f)
     (cond
       [(equal? action 'expand)
-        (expand-directory model row)]
+        (expand-directory model entry)]
       [(equal? action 'collapse)
-        (collapse-directory model current-rows row)]
+        (collapse-directory model entry)]
       [(equal? action 'toggle)
-        (toggle-directory model current-rows row)]
+        (toggle-directory model entry)]
       [else (error "invalid Cursor expansion action")])))
 
-(define (activate-row model current-rows row mode)
+(define (activate-entry model entry mode)
   (cond
-    [(not row)
+    [(not entry)
       (update-result model #f)]
-    [(rows.row-expandable? row)
-      (toggle-directory model current-rows row)]
-    [(rows.row-file? row)
+    [(expandable-entry? entry)
+      (toggle-directory model entry)]
+    [(tree.file-kind? (tree.entry-kind entry))
       (update-result
         (without-focus model)
-        (open-file-command (rows.row-path row) mode))]
+        (open-file-command
+          (path.path-for-id
+            (model-value-root model)
+            (tree.entry-id entry))
+          mode))]
     [else
       (update-result model #f)]))
 
-(define (on-cursor-expansion-requested model action)
-  (define current-rows (visible-rows model))
-  (define current-layout
-    (resolved-layout-for model current-rows))
-  (define revealed (reveal-cursor model current-layout))
+(define (cursor-expansion-requested model action)
+  (define revealed (reveal-cursor model))
   (directory-action
     revealed
-    current-rows
-    (current-cursor-row revealed current-rows)
+    (entry-for-id revealed (model-value-cursor revealed))
     action))
 
-(define (on-cursor-open-requested model mode)
-  (define current-rows (visible-rows model))
-  (define current-layout
-    (resolved-layout-for model current-rows))
-  (define revealed (reveal-cursor model current-layout))
-  (activate-row
+(define (cursor-open-requested model mode)
+  (define revealed (reveal-cursor model))
+  (activate-entry
     revealed
-    current-rows
-    (current-cursor-row revealed current-rows)
+    (entry-for-id revealed (model-value-cursor revealed))
     mode))
 
-(define (mutation-parent-id row)
+(define (mutation-parent-id entry)
+  (define source-id (tree.entry-id entry))
   (if
     (or
-      (path.root-id? (rows.row-relative-id row))
-      (tree.expandable-kind? (rows.row-kind row)))
-    (rows.row-relative-id row)
-    (path.parent-id (rows.row-relative-id row))))
+      (path.root-id? source-id)
+      (tree.expandable-kind? (tree.entry-kind entry)))
+    source-id
+    (path.parent-id source-id)))
 
-(define (on-cursor-mutation-requested model action)
-  (define current-rows (visible-rows model))
-  (define current-layout (resolved-layout-for model current-rows))
-  (define revealed (reveal-cursor model current-layout))
-  (define row
-    (current-cursor-row revealed current-rows))
-  (define source-id (and row (rows.row-relative-id row)))
+(define (cursor-mutation-requested model action)
+  (define revealed (reveal-cursor model))
+  (define entry
+    (entry-for-id revealed (model-value-cursor revealed)))
+  (define source-id (and entry (tree.entry-id entry)))
   (cond
-    [(not row) (update-result model #f)]
+    [(not entry) (update-result model #f)]
     [(member action '(file directory))
       (update-result
         revealed
         (create-prompt-command
           action
           (model-value-root model)
-          (mutation-parent-id row)))]
+          (mutation-parent-id entry)))]
     [(equal? action 'rename)
       (if
         (path.root-id? source-id)
@@ -546,32 +535,8 @@
           (delete-confirmation-command
             (model-value-root model)
             source-id
-            (tree.expandable-kind? (rows.row-kind row)))))]
+            (tree.expandable-kind? (tree.entry-kind entry)))))]
     [else (error "invalid Cursor mutation action")]))
-
-(define (on-scroll-by-requested model amount)
-  (define current-layout (resolved-layout model))
-  (if
-    current-layout
-    (update-result
-      (copy-model
-        model
-        #:anchor
-        (layout.scroll-by current-layout amount))
-      #f)
-    (update-result model #f)))
-
-(define (on-scroll-to-requested model numerator denominator)
-  (define current-layout (resolved-layout model))
-  (if
-    current-layout
-    (update-result
-      (copy-model
-        model
-        #:anchor
-        (layout.scroll-to current-layout numerator denominator))
-      #f)
-    (update-result model #f)))
 
 (define (host-width-limit model)
   (define current-geometry (model-value-geometry model))
@@ -579,7 +544,7 @@
     current-geometry
     (- (layout.geometry-width current-geometry) 1)))
 
-(define (on-resize-requested model requested-width)
+(define (resize-to-requested model requested-width)
   (define host-limit (host-width-limit model))
   (define upper
     (if
@@ -592,80 +557,28 @@
     (update-result model #f)
     (update-result (copy-model model #:width next-width) #f)))
 
-(define (update model message)
-  (cond
-    [(host-observed? message)
-      (on-host-observed
-        model
-        (host-observed-root message)
-        (host-observed-active-path message))]
-    [(focus-frame-observed? message)
-      (update-result
-        (focus-model
-          (install-geometry
-            (install-observation-snapshot
-              model
-              (focus-frame-observed-snapshot message))
-            (focus-frame-observed-geometry message)))
-        #f)]
-    [(observation-received? message)
-      (update-result
-        (install-observation-snapshot
-          model
-          (observation-received-snapshot message))
-        #f)]
-    [(unsaved-observed? message)
-      (on-unsaved-observed model (unsaved-observed-paths message))]
-    [(save-started? message)
-      (on-save-started model (save-started-path message))]
-    [(geometry-observed? message)
-      (update-result
-        (install-geometry
-          model
-          (geometry-observed-geometry message))
-        #f)]
-    [(focus-released? message)
-      (update-result (without-focus model) #f)]
-    [(cursor-move-requested? message)
-      (on-cursor-move-requested
-        model
-        (cursor-move-requested-direction message))]
-    [(cursor-expansion-requested? message)
-      (on-cursor-expansion-requested
-        model
-        (cursor-expansion-requested-action message))]
-    [(cursor-open-requested? message)
-      (on-cursor-open-requested
-        model
-        (cursor-open-requested-mode message))]
-    [(cursor-mutation-requested? message)
-      (on-cursor-mutation-requested
-        model
-        (cursor-mutation-requested-action message))]
-    [(row-pressed? message)
-      (define current-rows (visible-rows model))
-      (activate-row
-        model
-        current-rows
-        (rows.find current-rows (row-pressed-id message))
-        'normal)]
-    [(scroll-by-requested? message)
-      (on-scroll-by-requested
-        model
-        (scroll-by-requested-amount message))]
-    [(scroll-to-requested? message)
-      (on-scroll-to-requested
-        model
-        (scroll-to-requested-numerator message)
-        (scroll-to-requested-denominator message))]
-    [(resize-by-requested? message)
-      (on-resize-requested
-        model
-        (+ (model-value-width model)
-          (resize-by-requested-amount message)))]
-    [(resize-to-requested? message)
-      (on-resize-requested
-        model
-        (resize-to-requested-width message))]
-    [else
-      (error "unknown Model Message")]))
+(define (focus-frame-observed model snapshot geometry-value)
+  (update-result
+    (focus-model
+      (install-geometry
+        (install-observation-snapshot model snapshot)
+        geometry-value))
+    #f))
+
+(define (observation-received model snapshot)
+  (update-result (install-observation-snapshot model snapshot) #f))
+
+(define (geometry-observed model geometry-value)
+  (update-result (install-geometry model geometry-value) #f))
+
+(define (focus-released model)
+  (update-result (without-focus model) #f))
+
+(define (row-pressed model id)
+  (activate-entry model (entry-for-id model id) 'normal))
+
+(define (scroll-anchor-requested model id)
+  (update-result (copy-model model #:anchor id) #f))
+
+(define (resize-by-requested model amount)
+  (resize-to-requested model (+ (model-value-width model) amount)))

@@ -1,8 +1,7 @@
-(require (prefix-in git. "../src/domain/git.scm"))
 (require (prefix-in expansion. "../src/domain/expansion.scm"))
 (require (prefix-in layout. "../src/domain/layout.scm"))
 (require (prefix-in model. "../src/domain/model.scm"))
-(require (prefix-in rows. "../src/domain/rows.scm"))
+(require (prefix-in row. "../src/domain/row.scm"))
 (require (prefix-in tree. "../src/domain/tree.scm"))
 
 (define ROOT "/workspace")
@@ -51,27 +50,22 @@
       (file "item-10")
       (file "item-11"))))
 
-(define flat-rows
-  (rows.build
-    ROOT
-    flat-tree
-    (git.build '())
-    '()
-    #f
+(define flat-entries
+  (expansion.visible
     (expansion.empty)
-    #f))
+    flat-tree))
 
 (define (resolve-flat anchor geometry)
-  (layout.resolve flat-rows anchor geometry 16 'left))
+  (layout.resolve flat-entries anchor geometry 16 'left))
 
-(define root-id (rows.workspace-row-id ROOT))
-(define item-02-id (rows.entry-row-id ROOT "item-02"))
+(define root-id "")
+(define item-02-id "item-02")
 
 (define (slot-signature current)
   (map
     (lambda (slot)
       (list
-        (rows.row-id (layout.slot-row slot))
+        (tree.entry-id (layout.slot-entry slot))
         (layout.slot-pinned? slot)))
     (layout.pane-slots current)))
 
@@ -94,10 +88,10 @@
     (slot-signature bottom)
     (list
       (list root-id #t)
-      (list (rows.entry-row-id ROOT "item-08") #f)
-      (list (rows.entry-row-id ROOT "item-09") #f)
-      (list (rows.entry-row-id ROOT "item-10") #f)
-      (list (rows.entry-row-id ROOT "item-11") #f))))
+      (list "item-08" #f)
+      (list "item-09" #f)
+      (list "item-10" #f)
+      (list "item-11" #f))))
 
 (check
   "absolute Rail movement reaches both ends"
@@ -106,14 +100,12 @@
     (equal? bottom-anchor (layout.scroll-to middle 1 1))))
 
 (define missing
-  (resolve-flat
-    (rows.entry-row-id ROOT "missing")
-    GEOMETRY))
+  (resolve-flat "missing" GEOMETRY))
 (check
   "a missing anchor falls back to the Workspace root"
   (equal?
-    (rows.row-id
-      (layout.slot-row
+    (tree.entry-id
+      (layout.slot-entry
         (car (layout.pane-slots missing))))
     root-id))
 
@@ -130,39 +122,41 @@
       (file "tail-01")
       (file "tail-02"))))
 
-(define nested-rows
-  (rows.build
-    ROOT
-    nested-tree
-    (git.build '())
-    '()
-    #f
-    (expansion.expand
-      (expansion.expand (expansion.empty) "outer")
-      "outer/inner")
-    #f))
+(define nested-expansion
+  (expansion.expand
+    (expansion.expand (expansion.empty) "outer")
+    "outer/inner"))
 
-(define nested-target
-  (rows.entry-row-id ROOT "outer/inner/file-00"))
+(define nested-entries
+  (expansion.visible
+    nested-expansion
+    nested-tree))
+
+(define nested-target "outer/inner/file-00")
 
 (define nested-top
-  (layout.resolve nested-rows root-id GEOMETRY 16 'left))
+  (layout.resolve nested-entries root-id GEOMETRY 16 'left))
 (define nested-bottom
   (layout.resolve
-    nested-rows
+    nested-entries
     (layout.scroll-to nested-top 1 1)
     GEOMETRY
     16
     'left))
+(check
+  "Layout maps only ordinary rows to stable IDs"
+  (and
+    (equal? root-id (layout.row-id-at top 0))
+    (not (layout.row-id-at nested-bottom 0))))
 (check
   "bottom can leave unused Pane rows after the final Visible row"
   (equal?
     (slot-signature nested-bottom)
     (list
       (list root-id #t)
-      (list (rows.entry-row-id ROOT "tail-00") #f)
-      (list (rows.entry-row-id ROOT "tail-01") #f)
-      (list (rows.entry-row-id ROOT "tail-02") #f))))
+      (list "tail-00" #f)
+      (list "tail-01" #f)
+      (list "tail-02" #f))))
 
 (define (pinned-count height)
   (length
@@ -170,7 +164,7 @@
       layout.slot-pinned?
       (layout.pane-slots
         (layout.resolve
-          nested-rows
+          nested-entries
           nested-target
           (layout.geometry 0 0 40 height)
           16
@@ -186,31 +180,37 @@
         (loop (+ height 1))))))
 
 (define initial-model
-  (model.update-result-model (model.init 'left 16 #t #t)))
+  (model.init 'left 16 #t #t))
 
-(define (updated model-value message)
+(define (updated model-value transition . arguments)
   (model.update-result-model
-    (model.update model-value message)))
+    (apply transition model-value arguments)))
 
 (define nested-snapshot
   (model.observation-snapshot
     ROOT
     nested-tree
-    (git.build '())
-    "/workspace/outer/inner/file-00"))
+    #f
+    nested-target))
 
 (define (focus-frame model-value snapshot)
   (updated
     model-value
-    (model.focus-frame-observed snapshot GEOMETRY)))
+    model.focus-frame-observed
+    snapshot
+    GEOMETRY))
 
 (define expanded-model
   (focus-frame initial-model nested-snapshot))
 
+(define bottom-id
+  (layout.scroll-to (model.resolved-layout expanded-model) 1 1))
+
 (define bottom-model
   (updated
-    (updated expanded-model (model.focus-released))
-    (model.scroll-to-requested 1 1)))
+    (updated expanded-model model.focus-released)
+    model.scroll-anchor-requested
+    bottom-id))
 
 (check
   "the focus law starts with its Active file outside Layout"
@@ -219,7 +219,7 @@
       (lambda (slot)
         (equal?
           nested-target
-          (rows.row-id (layout.slot-row slot))))
+          (tree.entry-id (layout.slot-entry slot))))
       (layout.pane-slots (model.resolved-layout bottom-model)))))
 
 (define focused-model
@@ -228,9 +228,9 @@
 (define unavailable-focused-model
   (updated
     initial-model
-    (model.focus-frame-observed
-      nested-snapshot
-      (layout.geometry 0 0 16 5))))
+    model.focus-frame-observed
+    nested-snapshot
+    (layout.geometry 0 0 16 5)))
 
 (check
   "an unavailable Pane does not expand Active file ancestors"
@@ -240,12 +240,13 @@
       "outer")))
 
 (define focused-layout (model.resolved-layout focused-model))
+(define focused-facts (model.row-facts focused-model))
 (define focused-cursor-slots
   (filter
     (lambda (slot)
       (and
         (not (layout.slot-pinned? slot))
-        (rows.row-cursor? (layout.slot-row slot))))
+        (row.cursor? focused-facts (layout.slot-entry slot))))
     (layout.pane-slots focused-layout)))
 
 (check
@@ -254,15 +255,15 @@
     (= 1 (length focused-cursor-slots))
     (equal?
       nested-target
-      (rows.row-id
-        (layout.slot-row (car focused-cursor-slots))))))
+      (tree.entry-id
+        (layout.slot-entry (car focused-cursor-slots))))))
 
 (define (ordinary-slot? current-layout id)
   (any?
     (lambda (slot)
       (and
         (not (layout.slot-pinned? slot))
-        (equal? id (rows.row-id (layout.slot-row slot)))))
+        (equal? id (tree.entry-id (layout.slot-entry slot)))))
     (layout.pane-slots current-layout)))
 
 (define (all? predicate values)
@@ -278,27 +279,27 @@
       (> height 8)
       (and
         (all?
-          (lambda (anchor-row)
+          (lambda (anchor-entry)
             (define initial
               (layout.resolve
-                nested-rows
-                (rows.row-id anchor-row)
+                nested-entries
+                (tree.entry-id anchor-entry)
                 (layout.geometry 0 0 40 height)
                 16
                 'left))
             (all?
-              (lambda (target-row)
-                (define target-id (rows.row-id target-row))
+              (lambda (target-entry)
+                (define target-id (tree.entry-id target-entry))
                 (define revealed
                   (layout.resolve
-                    nested-rows
+                    nested-entries
                     (layout.reveal initial target-id placement)
                     (layout.geometry 0 0 40 height)
                     16
                     'left))
                 (ordinary-slot? revealed target-id))
-              nested-rows))
-          nested-rows)
+              nested-entries))
+          nested-entries)
         (height-loop (+ height 1))))))
 
 (check

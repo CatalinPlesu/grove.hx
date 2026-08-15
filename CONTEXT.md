@@ -11,7 +11,7 @@ _Avoid_: Project, Tree model, provider state, project pane
 **Observation snapshot**:
 One atomic external observation of Workspace root, File tree, Git status, and
 Active file. Every field belongs to the same Workspace root. The snapshot is a
-Message payload, not a state owner.
+Model transition payload, not a state owner.
 _Avoid_: Workspace snapshot, application snapshot
 
 **Model**:
@@ -162,10 +162,10 @@ _Avoid_: File dot, bullet
 
 **Visible row**:
 One semantic filesystem entry in the current File tree. Its stable identity
-drives navigation. The Workspace root has its own identity. Every non-root row
-uses its Workspace root plus exact relative path as identity. Recreating an
-entry at the same path preserves that row identity. Ordinary non-root rows also
-expose an absolute path for Host actions.
+drives navigation. Its identity is the exact Workspace-relative path within the
+current Workspace session. The Workspace root uses the empty relative path.
+Recreating an entry at the same path preserves that row identity. Grove creates
+an absolute path only when it sends a Host command.
 _Avoid_: Rendered line, row index
 
 **Pinned ancestor row**:

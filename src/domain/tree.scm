@@ -5,12 +5,11 @@
   build
   unreadable-root
   find
-  entry-depth
-  entry-label
+  index-of
   file-kind?
   directory-kind?
   expandable-kind?
-  directory?)
+  expandable?)
 
 (struct file-tree-entry-value (id kind))
 
@@ -36,6 +35,11 @@
 
 (define (expandable-kind? kind)
   (and (member kind '(directory unreadable-directory)) #t))
+
+(define (expandable? entry)
+  (and
+    (not (path.root-id? (entry-id entry)))
+    (expandable-kind? (entry-kind entry))))
 
 (define (file-tree-entry id kind)
   (unless (and (path.valid-id? id) (valid-kind? kind))
@@ -83,14 +87,11 @@
     (lambda (entry) (string=? id (entry-id entry)))
     file-tree))
 
-(define (entry-depth entry)
-  (if
-    (path.root-id? (entry-id entry))
-    0
-    (length (split-many (entry-id entry) "/"))))
-
-(define (entry-label entry)
-  (path.basename (entry-id entry)))
-
-(define (directory? entry)
-  (directory-kind? (entry-kind entry)))
+(define (index-of entries id)
+  (let loop ([remaining entries] [ordinal 0])
+    (and
+      (pair? remaining)
+      (if
+        (string=? id (entry-id (car remaining)))
+        ordinal
+        (loop (cdr remaining) (+ ordinal 1))))))

@@ -1,15 +1,16 @@
 (require "helix/components.scm")
-(require (prefix-in rows. "../domain/rows.scm"))
+(require (prefix-in row. "../domain/row.scm"))
+(require (prefix-in tree. "../domain/tree.scm"))
+(require (prefix-in path. "../domain/path.scm"))
 (require (prefix-in layout. "../domain/layout.scm"))
 (require (prefix-in devicons. "devicons/devicons.scm"))
-(require (prefix-in theme. "theme.scm"))
 
-(provide build line-background line-runs line-rail line-press-target
-  run-text
-  run-style)
+(provide draw!)
 
 (struct run (text style))
-(struct line (background runs rail press-target))
+
+(define (theme-value theme role)
+  (hash-ref theme role))
 
 (define (replace-control-characters text)
   (list->string
@@ -30,30 +31,31 @@
     [else
       (string-append "│ " (ancestor-trace-indent (- depth 1)))]))
 
-(define (ancestry-indent row guides)
-  (define depth (rows.row-depth row))
+(define (ancestry-indent entry guides)
+  (define depth (path.depth (tree.entry-id entry)))
   (if
     guides
     (ancestor-trace-indent depth)
     (make-string (* 2 (max 0 (- depth 1))) #\space)))
 
-(define (row-colors-for slot current-theme)
-  (define row (layout.slot-row slot))
+(define (row-colors-for slot current-facts current-theme)
+  (define entry (layout.slot-entry slot))
   (cond
-    [(rows.row-cursor? row) (theme.resolved-theme-cursor current-theme)]
+    [(row.cursor? current-facts entry)
+      (theme-value current-theme 'cursor)]
     [(layout.slot-pinned? slot)
-      (theme.resolved-theme-pinned-ancestor-row current-theme)]
-    [(rows.row-active-file? row)
-      (theme.resolved-theme-active-file current-theme)]
-    [else (theme.resolved-theme-visible-row current-theme)]))
+      (theme-value current-theme 'pinned-ancestor-row)]
+    [(row.active-file? current-facts entry)
+      (theme-value current-theme 'active-file)]
+    [else (theme-value current-theme 'visible-row)]))
 
-(define (row-leading-runs row current-theme base-style)
+(define (row-leading-runs entry current-facts current-theme base-style)
   (define guides
-    (theme.resolved-theme-guides-foreground current-theme))
+    (theme-value current-theme 'guides-foreground))
   (define guides-style
     (if guides (style-fg base-style guides) base-style))
   (define active-file-foreground
-    (theme.resolved-theme-active-file-mark-foreground current-theme))
+    (theme-value current-theme 'active-file-mark-foreground))
   (define active-file-style
     (if
       active-file-foreground
@@ -61,16 +63,17 @@
       base-style))
   (append
     (list
-      (run (if (rows.row-cursor? row) ">" " ") base-style)
-      (run (ancestry-indent row guides) guides-style))
+      (run (if (row.cursor? current-facts entry) ">" " ") base-style)
+      (run (ancestry-indent entry guides) guides-style))
     (cond
-      [(= (rows.row-depth row) 0) '()]
-      [(rows.row-expandable? row)
+      [(path.root-id? (tree.entry-id entry)) '()]
+      [(tree.expandable? entry)
         (list
           (run
-            (if (rows.row-expanded? row) "▾" "▸")
+            (if (row.expanded? current-facts entry) "▾" "▸")
             base-style))]
-      [(rows.row-active-file? row) (list (run "*" active-file-style))]
+      [(row.active-file? current-facts entry)
+        (list (run "*" active-file-style))]
       [else (list (run (if guides "·" " ") guides-style))])))
 
 (define (fit-runs source-runs width base-style)
@@ -102,14 +105,14 @@
                   (run-style current))
                 result))])])))
 
-(define (icon-area-runs row error-icon current-theme base-style)
-  (define palette (theme.resolved-theme-icon-palette current-theme))
+(define (icon-area-runs entry error-icon current-facts current-theme base-style)
+  (define palette (theme-value current-theme 'icon-palette))
   (define icon
     (and
       palette
-      (rows.row-file? row)
+      (tree.file-kind? (tree.entry-kind entry))
       (devicons.get_icon
-        (rows.row-label row)
+        (row.label current-facts entry)
         #:variant
         palette)))
   (define icon-run
@@ -130,36 +133,38 @@
             error-icon
             (style-fg
               base-style
-              (theme.resolved-theme-filesystem-error-foreground
-                current-theme)))]
-        [(= (rows.row-depth row) 0)
+              (theme-value current-theme 'filesystem-error-foreground)))]
+        [(path.root-id? (tree.entry-id entry))
           (run "󰙅" base-style)]
-        [(member (rows.row-kind row) '(directory directory-link))
+        [(member (tree.entry-kind entry) '(directory directory-link))
           (run
-            (if (rows.row-expanded? row) "" "")
+            (if (row.expanded? current-facts entry) "" "")
             base-style)]
         [else #f])))
   (if
     icon-run
     (if
-      (= (rows.row-depth row) 0)
+      (path.root-id? (tree.entry-id entry))
       (list icon-run (run " " base-style))
       (list (run " " base-style) icon-run (run " " base-style)))
     (if
-      (= (rows.row-depth row) 0)
+      (path.root-id? (tree.entry-id entry))
       '()
       (list (run " " base-style)))))
 
-(define (row-runs slot width current-theme base-style)
-  (define row (layout.slot-row slot))
+(define (row-runs slot width current-facts current-theme base-style)
+  (define entry (layout.slot-entry slot))
   (define body-width (max 0 (- width 1)))
-  (define error-icon (error-icon-for-kind (rows.row-kind row)))
+  (define error-icon (error-icon-for-kind (tree.entry-kind entry)))
+  (define git-status (row.git-status current-facts entry))
   (define label-foreground
     (or
       (and
         error-icon
-        (theme.resolved-theme-filesystem-error-foreground current-theme))
-      (theme.git-foreground current-theme (rows.row-git-status row))))
+        (theme-value current-theme 'filesystem-error-foreground))
+      (and
+        (member git-status '(conflict deleted modified created))
+        (theme-value current-theme git-status))))
   (define label-base
     (if
       label-foreground
@@ -167,18 +172,19 @@
       base-style))
   (define label-final
     (if
-      (equal? (rows.row-git-status row) 'ignored)
+      (equal? git-status 'ignored)
       (style-with-dim label-base)
       label-base))
-  (define unsaved-status (rows.row-unsaved-status row))
+  (define unsaved-status (row.unsaved-status current-facts entry))
   (define body
     (fit-runs
       (append
-        (row-leading-runs row current-theme base-style)
-        (icon-area-runs row error-icon current-theme base-style)
+        (row-leading-runs entry current-facts current-theme base-style)
+        (icon-area-runs
+          entry error-icon current-facts current-theme base-style)
         (list
           (run
-            (replace-control-characters (rows.row-label row))
+            (replace-control-characters (row.label current-facts entry))
             label-final)))
       body-width
       base-style))
@@ -194,7 +200,7 @@
             unsaved-status
             (style-fg
               base-style
-              (theme.resolved-theme-unsaved-mark-foreground current-theme))
+              (theme-value current-theme 'unsaved-mark-foreground))
             base-style))))))
 
 (define (rail-glyph-for part side)
@@ -203,36 +209,74 @@
     (if (equal? side 'left) "▐" "▌")
     (if (equal? side 'left) "▕" "▏")))
 
-(define (build slot content-width side rail-part current-theme)
+(define (content-x current-layout)
+  (if
+    (equal? (layout.side current-layout) 'right)
+    (+ (layout.x current-layout) 1)
+    (layout.x current-layout)))
+
+(define (draw-runs! frame runs column row)
+  (unless (null? runs)
+    (define current (car runs))
+    (define text (run-text current))
+    (frame-set-string!
+      frame column row text (run-style current))
+    (draw-runs!
+      frame
+      (cdr runs)
+      (+ column (string-length text))
+      row)))
+
+(define (draw-line! frame slot current-layout row current-facts current-theme)
+  (define content-width (- (layout.width current-layout) 1))
+  (define side (layout.side current-layout))
+  (define rail-part (layout.rail-part-at current-layout row))
   (define appearance
-    (and slot (row-colors-for slot current-theme)))
+    (and slot (row-colors-for slot current-facts current-theme)))
   (define line-background
     (if
       appearance
-      (theme.row-colors-background appearance)
-      (theme.resolved-theme-pane-background current-theme)))
+      (car appearance)
+      (theme-value current-theme 'pane-background)))
   (define base-style
     (and
       appearance
-      (style-fg (style) (theme.row-colors-foreground appearance))))
-  (line
-    line-background
-    (if
-      slot
-      (row-runs slot content-width current-theme base-style)
-      '())
-    (run
-      (rail-glyph-for rail-part side)
-      (style-bg
-        (style-fg
-          (style)
-          (if
-            (equal? rail-part 'thumb)
-            (theme.resolved-theme-rail-thumb current-theme)
-            (theme.resolved-theme-rail-track current-theme)))
-        (theme.resolved-theme-pane-background current-theme)))
-    (and
-      slot
-      (not (layout.slot-pinned? slot))
-      (rows.row-pressable? (layout.slot-row slot))
-      (rows.row-id (layout.slot-row slot)))))
+      (style-fg (style) (cdr appearance))))
+  (buffer/clear-with
+    frame
+    (area (content-x current-layout) row content-width 1)
+    (style-bg (style) line-background))
+  (when slot
+    (draw-runs!
+      frame
+      (row-runs slot content-width current-facts current-theme base-style)
+      (content-x current-layout)
+      row))
+  (frame-set-string!
+    frame
+    (layout.rail-x current-layout)
+    row
+    (rail-glyph-for rail-part side)
+    (style-bg
+      (style-fg
+        (style)
+        (if
+          (equal? rail-part 'thumb)
+          (theme-value current-theme 'rail-thumb)
+          (theme-value current-theme 'rail-track)))
+      (theme-value current-theme 'pane-background))))
+
+(define (draw! frame current-layout current-facts current-theme)
+  (let loop ([offset 0]
+             [remaining (layout.pane-slots current-layout)])
+    (unless (= offset (layout.height current-layout))
+      (draw-line!
+        frame
+        (and (pair? remaining) (car remaining))
+        current-layout
+        (+ (layout.y current-layout) offset)
+        current-facts
+        current-theme)
+      (loop
+        (+ offset 1)
+        (if (pair? remaining) (cdr remaining) '())))))
