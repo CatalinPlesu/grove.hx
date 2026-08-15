@@ -17,7 +17,6 @@
   slot-entry
   slot-pinned?
   rail-x
-  rail-part-at
   rail-thumb-offset
   rail-resize-width
   rail-scroll-anchor
@@ -306,17 +305,6 @@
     (>= row current-y)
     (< row (+ current-y current-height))
     (- row current-y)))
-
-(define (rail-part-at layout row)
-  (and
-    (>= row (y layout))
-    (< row
-      (+ (y layout)
-        (height layout)))
-    (if
-      (integer? (rail-thumb-offset layout row))
-      'thumb
-      'track)))
 
 (define (rail-resize-width layout column)
   (min

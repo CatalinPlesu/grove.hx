@@ -200,9 +200,9 @@
               (hash-ref current-theme 'unsaved-mark-foreground))
             base-style))))))
 
-(define (rail-glyph-for part side)
+(define (rail-glyph-for thumb? side)
   (if
-    (equal? part 'thumb)
+    thumb?
     (if (equal? side 'left) "▐" "▌")
     (if (equal? side 'left) "▕" "▏")))
 
@@ -227,7 +227,8 @@
 (define (draw-line! frame slot current-layout row current-facts current-theme)
   (define content-width (- (layout.width current-layout) 1))
   (define side (layout.side current-layout))
-  (define rail-part (layout.rail-part-at current-layout row))
+  (define thumb?
+    (integer? (layout.rail-thumb-offset current-layout row)))
   (define appearance
     (and slot (row-colors-for slot current-facts current-theme)))
   (define line-background
@@ -253,12 +254,12 @@
     frame
     (layout.rail-x current-layout)
     row
-    (rail-glyph-for rail-part side)
+    (rail-glyph-for thumb? side)
     (style-bg
       (style-fg
         (style)
         (if
-          (equal? rail-part 'thumb)
+          thumb?
           (hash-ref current-theme 'rail-thumb)
           (hash-ref current-theme 'rail-track)))
       (hash-ref current-theme 'pane-background))))
