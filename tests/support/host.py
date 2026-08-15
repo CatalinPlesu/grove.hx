@@ -125,6 +125,16 @@ class Helix:
         )
         self.paste(command[1:])
         self.pane.enter()
+        self._wait_until(
+            "Helix did not finish command entry",
+            lambda: (
+                self.is_dead()
+                or not (
+                    (lines := tuple(self.pane.capture_pane()))
+                    and lines[-1].startswith(":")
+                )
+            ),
+        )
 
     def _editor_mode(self) -> str | None:
         try:

@@ -176,14 +176,16 @@ Feature: Manage Workspace files
     And the editor inserts "dirty-" without saving
     And Grove is focused
     And Grove receives "d"
-    And Grove receives "y"
+    Then Helix shows the message "Permanently delete anchor.txt? y to confirm"
+    When Grove receives "y"
     Then Helix shows the message "Cannot delete anchor.txt: anchor.txt has"
     And "anchor.txt" still exists
     When Grove receives "Escape"
     And the editor inserts "saved-" and saves
     And Grove is focused
     And Grove receives "d"
-    And Grove receives "y"
+    Then Helix shows the message "Permanently delete anchor.txt? y to confirm"
+    When Grove receives "y"
     Then "anchor.txt" no longer exists
     And the old "anchor.txt" buffer is closed
     And Helix shows the "fallback.txt" document
