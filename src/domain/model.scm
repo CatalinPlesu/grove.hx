@@ -32,7 +32,8 @@
   update-result-command
   refresh-command?
   open-file-command?
-  open-file-command-path
+  open-file-command-root
+  open-file-command-id
   open-file-command-mode
   create-prompt-command?
   create-prompt-command-kind
@@ -60,7 +61,7 @@
 (struct observation-snapshot (root tree git-status active-id))
 
 (struct refresh-command ())
-(struct open-file-command (path mode))
+(struct open-file-command (root id mode))
 (struct create-prompt-command (kind root parent-id))
 (struct rename-prompt-command (root source-id))
 (struct delete-confirmation-command
@@ -473,9 +474,8 @@
       (update-result
         (without-focus model)
         (open-file-command
-          (path.path-for-id
-            (model-value-root model)
-            (tree.entry-id entry))
+          (model-value-root model)
+          (tree.entry-id entry)
           mode))]
     [else
       (update-result model #f)]))

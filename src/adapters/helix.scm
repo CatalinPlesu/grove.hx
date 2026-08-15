@@ -71,7 +71,9 @@
       (schedule-refresh!)]
     [(model.open-file-command? command)
       (host.open-file!
-        (model.open-file-command-path command)
+        (path.path-for-id
+          (model.open-file-command-root command)
+          (model.open-file-command-id command))
         (model.open-file-command-mode command))]
     [(model.create-prompt-command? command)
       (files.prompt-create! command dispatch! refresh-now!)]

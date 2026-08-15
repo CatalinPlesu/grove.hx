@@ -231,6 +231,21 @@ Feature: Manage Workspace files
     And "source.txt" still exists
     And "source.txt" has Cursor
 
+  Scenario: Move an entry outside the Workspace
+    Given a Workspace containing entries
+      | kind | path       |
+      | file | anchor.txt |
+      | file | source.txt |
+    And "anchor.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And the terminal width becomes 140 columns
+    And Grove is focused
+    And Grove receives "Down"
+    And Grove receives "r"
+    Then the native prompt is "Rename or move source.txt to"
+    When the prompt receives "../escaped.txt"
+    Then "source.txt" no longer exists and "../escaped.txt" exists
+
   Scenario: Refuse rename after the source disappears
     Given a Workspace containing entries
       | kind | path       |
