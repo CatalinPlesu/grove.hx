@@ -62,6 +62,9 @@ file-editing sessions remain unchanged.
       (e ":grove-focus!"))))
 ```
 
+This binds `Space e` to Grove. Merge the binding into your existing keymap or
+choose another chord if `Space e` is already taken.
+
 Launch Helix with a Workspace explicitly:
 
 ```sh
