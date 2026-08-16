@@ -1,27 +1,34 @@
 import json
-from contextlib import ExitStack
-from pathlib import Path
 
 import pytest
-from libtmux.server import Server
 from pytest_bdd import given, parsers, then, when
 from rich.console import Console
 from rich.text import Text
 
 from tests.support.grove import GroveDriver, GroveFrame, VisibleRow
-from tests.support.grove_launch import start_grove_helix
-from tests.support.helix import TEST_THEME, HelixDriver, HelixSandbox
-from tests.support.workspace import EntrySpec, WorkspaceFixture
 
 from .rows import scenario_path
 
-REPOSITORY = Path(__file__).parents[3]
 ANSI_CONSOLE = Console(color_system="truecolor")
+
+_INVALID_THEMES = {
+    "a boolean": "#t",
+    "an empty Cursor source": '(grove-theme #:cursor "")',
+    "a numeric Cursor source": "(grove-theme #:cursor 42)",
+}
 
 
 @pytest.fixture
 def grove_theme_sources() -> dict[str, dict[str, str]]:
     return {}
+
+
+@given(
+    parsers.parse('an invalid Grove theme configuration: "{configuration}"'),
+    target_fixture="grove_settings",
+)
+def invalid_grove_theme(configuration: str) -> dict[str, str]:
+    return {"theme": _INVALID_THEMES[configuration]}
 
 
 @given("a Grove theme assigns these sources", target_fixture="grove_settings")
@@ -73,46 +80,6 @@ def _active_file_row(frame: GroveFrame) -> VisibleRow | None:
 @when("Helix changes to a theme with different colors for that scope")
 def change_to_alternate_theme(grove: GroveDriver) -> None:
     grove.helix.command("theme grove_test_alt")
-
-
-@given(
-    parsers.re(r"^Grove starts with theme configuration (?P<configuration>.+)$"),
-    target_fixture="helix",
-)
-def start_with_invalid_theme(
-    resources: ExitStack,
-    tmp_path: Path,
-    server: Server,
-    helix_sandbox: HelixSandbox,
-    configuration: str,
-) -> HelixDriver:
-    workspace = WorkspaceFixture.create(
-        tmp_path / "workspace",
-        [EntrySpec(Path("anchor.txt"))],
-    )
-    resources.callback(workspace.close)
-    helix = start_grove_helix(
-        helix_sandbox,
-        REPOSITORY,
-        server,
-        workspace,
-        active_file=None,
-        startup=f"(grove-start! #:theme {configuration})",
-        theme=TEST_THEME,
-    )
-    resources.callback(helix.close)
-    return helix
-
-
-@then("Grove startup reports an invalid theme error")
-def startup_reports_invalid_theme(helix: HelixDriver) -> None:
-    helix.terminal.wait(
-        lambda frame: (
-            None
-            if any("invalid Grove theme" in line for line in frame.lines)
-            else "Grove did not report invalid theme configuration"
-        )
-    )
 
 
 @then("Cursor uses the configured row colors without source modifiers")

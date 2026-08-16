@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -9,7 +10,15 @@ from .grove import GroveDriver
 from .helix import TEST_THEME, HelixDriver, HelixSandbox
 from .workspace import WorkspaceFixture
 
-DEFAULT_STARTUP = "(grove-start!)"
+_SETTING_VALUES = {
+    "enabled": "#t",
+    "disabled": "#f",
+    "left": "'left",
+    "right": "'right",
+    "middle": "'middle",
+    "wide text": json.dumps("wide"),
+    "non-boolean": "'enabled",
+}
 
 
 def start_grove(
@@ -23,17 +32,13 @@ def start_grove(
     theme: str | None = None,
     init: str = "",
 ) -> GroveDriver:
-    arguments = " ".join(
-        f"#:{name} {value}" for name, value in (settings or {}).items()
-    )
-    startup = f"(grove-start! {arguments})" if arguments else DEFAULT_STARTUP
     helix = start_grove_helix(
         sandbox,
         repository,
         server,
         workspace,
         active_file=active_file,
-        startup=startup,
+        settings=settings,
         theme=theme,
         init=init,
     )
@@ -51,10 +56,17 @@ def start_grove_helix(
     workspace: WorkspaceFixture,
     *,
     active_file: Path | None = None,
-    startup: str,
+    settings: Mapping[str, str] | None = None,
+    starts: int = 1,
     theme: str | None = None,
     init: str = "",
 ) -> HelixDriver:
+    arguments = " ".join(
+        f"#:{name} {_SETTING_VALUES.get(value, value)}"
+        for name, value in (settings or {}).items()
+    )
+    call = f"(grove-start! {arguments})" if arguments else "(grove-start!)"
+    startup = "\n".join(call for _ in range(starts))
     return sandbox.start(
         server,
         cwd=workspace.root,

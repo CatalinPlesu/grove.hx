@@ -46,6 +46,7 @@ Feature: Use the pointer in Grove
     When Helix starts with Grove in that Workspace
     And the Workspace root becomes unreadable
     Then "Workspace root" uses the unreadable-directory icon and error foreground
+    And "Workspace root" cannot expand
     When "Workspace root" is pressed
     And the editor receives "i" while Grove is unfocused
     Then the active Editor view is in Insert mode
@@ -75,6 +76,17 @@ Feature: Use the pointer in Grove
     And the editor is pressed
     And the editor inserts "outside-" and saves
     Then the content of "anchor.txt" contains "outside-"
+
+  Scenario: Keep Grove unchanged for an outside Wheel event
+    Given a Workspace containing entries
+      | path       |
+      | anchor.txt |
+    And "anchor.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And Grove is focused
+    And the Wheel scrolls down over the editor
+    Then Pane row 2 is "anchor.txt"
+    And "anchor.txt" has Cursor
 
   Rule: Scroll the File tree
 
@@ -112,6 +124,16 @@ Feature: Use the pointer in Grove
       Then Helix shows the "page-00.txt" document
 
   Rule: Other pointer input
+
+    Scenario: Keep Cursor when blank Grove space is pressed
+      Given a Workspace containing entries
+        | path       |
+        | anchor.txt |
+      And "anchor.txt" is Active
+      When Helix starts with Grove in that Workspace
+      And Grove is focused
+      And blank Grove space is pressed
+      Then "anchor.txt" has Cursor
 
     Scenario: Ignore inert rows and blank Grove space
       Given a Workspace containing entries

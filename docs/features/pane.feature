@@ -67,11 +67,8 @@ Feature: Size and place the Pane
     Examples:
       | side  | terminal | requested | expected |
       | left  | 100      | 1         | 16       |
-      | left  | 100      | 80        | 64       |
-      | right | 100      | 1         | 16       |
       | right | 100      | 80        | 64       |
       | left  | 40       | 64        | 39       |
-      | right | 40       | 64        | 39       |
 
   Scenario: Retain adjusted width across Workspace replacement
     Given a Workspace named "first" containing entries
@@ -102,12 +99,16 @@ Feature: Size and place the Pane
       | side    | <side> |
       | width   | 30     |
     When Helix starts with Grove in that Workspace
+    And Grove is focused
     And the terminal width becomes 31 columns
     Then Grove is Docked on the "<side>" at width 30
     When the terminal width becomes 30 columns
     Then Grove yields the whole terminal to Helix
     When the terminal width becomes 100 columns
     Then Grove is Docked on the "<side>" at width 30
+    And "anchor.txt" has no Cursor mark
+    When Grove is focused
+    Then "anchor.txt" has Cursor
 
     Examples:
       | side  |

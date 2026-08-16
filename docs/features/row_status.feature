@@ -85,6 +85,15 @@ Feature: Present File tree status layers
     Then "nested" uses the created Git foreground
     And "nested/file.txt" uses the theme text foreground
 
+  Scenario: Map status from a Git repository above the Workspace
+    Given a Workspace containing entries
+      | path        |
+      | tracked.txt |
+    And "tracked.txt" is Active
+    And a parent Git repository tracks "tracked.txt" as modified inside the Workspace
+    When Helix starts with Grove in that Workspace
+    Then "tracked.txt" uses the modified Git foreground
+
   Scenario: Compose ordinary status layers on a Pinned row
     Given a Workspace containing entries
       | kind | path                                  | count |

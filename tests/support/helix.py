@@ -40,6 +40,7 @@ class EditorView:
     mode: str | None
     cursor: tuple[int, int] | None
     lines: tuple[str, ...]
+    status_row: int
 
     @property
     def first_visible_line(self) -> str | None:
@@ -265,6 +266,7 @@ def _view(segment: _StatusSegment, lines: Sequence[str]) -> EditorView:
         modes[0] if modes else None,
         (int(cursor.group(1)), int(cursor.group(2))) if cursor else None,
         tuple(line[segment.start : segment.end].rstrip() for line in lines),
+        segment.row,
     )
 
 

@@ -204,11 +204,12 @@ Feature: Theme Grove
     Then the Rail track and thumb use terminal default foregrounds
 
   Scenario Outline: Reject invalid Grove theme configuration
-    Given Grove starts with theme configuration <configuration>
-    Then Grove startup reports an invalid theme error
+    Given an invalid Grove theme configuration: "<configuration>"
+    When Grove startup is attempted
+    Then Grove startup reports "invalid Grove theme"
 
     Examples:
-      | configuration              |
-      | #t                         |
-      | (grove-theme #:cursor "") |
-      | (grove-theme #:cursor 42)  |
+      | configuration           |
+      | a boolean               |
+      | an empty Cursor source  |
+      | a numeric Cursor source |

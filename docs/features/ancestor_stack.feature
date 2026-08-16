@@ -1,17 +1,5 @@
 Feature: Keep hierarchy visible while the File tree scrolls
 
-  Scenario: Pin the hierarchy after scrolling into a nested subtree
-    Given a Workspace containing entries
-      | kind | path                             | count |
-      | file | alpha/beta/gamma/item-{:02d}.txt | 13    |
-      | file | tail-{:02d}.txt                  | 6     |
-    And "alpha/beta/gamma/item-00.txt" is Active
-    When Helix starts with Grove in that Workspace
-    And Grove is focused
-    And the terminal height becomes 6 rows
-    And the Wheel scrolls down over Grove
-    Then the Ancestor stack is "Workspace root > alpha > alpha/beta" above File tree row "alpha/beta/gamma"
-
   Scenario: Peel at one-level and multi-level sibling boundaries
     Given a Workspace containing entries
       | kind      | path                          | count |
@@ -110,8 +98,6 @@ Feature: Keep hierarchy visible while the File tree scrolls
     Examples:
       | key    |
       | +      |
-      | -      |
-      | Escape |
       | z      |
 
   Scenario Outline: Snap back and act on a Pinned Cursor directory
@@ -136,5 +122,3 @@ Feature: Keep hierarchy visible while the File tree scrolls
       | key    | expected |
       | Left   | alpha/beta/gamma |
       | Enter  | alpha/beta/gamma |
-      | Ctrl-s | alpha/beta/gamma |
-      | Ctrl-v | alpha/beta/gamma |

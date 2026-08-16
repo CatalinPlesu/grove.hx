@@ -63,17 +63,21 @@ Feature: Follow Helix's current Workspace
 
   Scenario: Start a fresh File tree session after returning
     Given a Workspace named "first" containing entries
-      | kind      | path                    |
-      | file      | anchor.txt              |
-      | directory | expanded-dir            |
-      | file      | expanded-dir/inside.txt |
+      | kind      | path                    | count |
+      | file      | anchor.txt              |       |
+      | directory | expanded-dir            |       |
+      | file      | expanded-dir/inside.txt |       |
+      | file      | tail-{:02d}.txt          | 40    |
     And "anchor.txt" is Active in Workspace "first"
     And a Workspace named "second" containing entries
       | path    |
       | new.txt |
     When Helix starts with Grove in Workspace "first"
     And the "expanded-dir" directory is expanded
-    And Helix runs "cd" for Workspace "second"
+    And the terminal height becomes 8 rows
+    And the Wheel scrolls down 20 times over Grove
+    Then the File tree ends with "tail-39.txt"
+    When Helix runs "cd" for Workspace "second"
     Then the File tree root is "second"
     When Helix runs "cd" for Workspace "first"
     Then "expanded-dir" remains collapsed

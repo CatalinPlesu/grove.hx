@@ -31,6 +31,11 @@ def file_tree_already_shows(grove: GroveDriver, name: str) -> None:
     )
 
 
+@then(parsers.parse('the File tree already does not show "{name}"'))
+def file_tree_already_does_not_show(grove: GroveDriver, name: str) -> None:
+    assert _visible_row(grove.capture(), name) is None, f'Grove still showed "{name}"'
+
+
 @then(parsers.parse('the content of "{name}" starts with "{text}"'))
 def file_content_starts_with(
     grove: GroveDriver,
@@ -38,7 +43,7 @@ def file_content_starts_with(
     name: str,
     text: str,
 ) -> None:
-    document = workspace.document_path(name)
+    document = workspace.path(name)
 
     def mismatch(_frame: GroveFrame) -> str | None:
         try:
@@ -59,7 +64,7 @@ def file_content_contains(
     name: str,
     text: str,
 ) -> None:
-    document = workspace.document_path(name)
+    document = workspace.path(name)
 
     def mismatch(_frame: GroveFrame) -> str | None:
         try:

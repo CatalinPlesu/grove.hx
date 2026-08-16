@@ -3,7 +3,7 @@ from pathlib import Path
 
 from pytest_bdd import parsers, then, when
 
-from tests.support.grove import GroveDriver
+from tests.support.grove import GroveDriver, GroveFrame
 from tests.support.workspace import WorkspaceFixture
 
 from .rows import scenario_path
@@ -273,6 +273,22 @@ def helix_has_editor_views(grove: GroveDriver, count: int) -> None:
             else f"Helix did not show {count} editor views"
         ),
     )
+
+
+@then(parsers.parse("Helix Editor views are split {direction}"))
+def helix_editor_views_are_split(grove: GroveDriver, direction: str) -> None:
+    def mismatch(frame: GroveFrame) -> str | None:
+        if len(frame.helix.views) != 2:
+            return "Helix did not show two Editor views"
+        first, second = frame.helix.views
+        horizontal = first.status_row != second.status_row
+        if horizontal == (direction == "horizontally"):
+            return None
+        return f"Helix Editor views were not split {direction}"
+
+    if direction not in {"horizontally", "vertically"}:
+        raise ValueError(f"Unknown split direction: {direction!r}")
+    grove.wait(mismatch)
 
 
 @then(parsers.parse('"{name}" has Cursor'))

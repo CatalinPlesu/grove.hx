@@ -13,24 +13,10 @@ Feature: Manage Workspace files
     Then the native prompt is "New file in docs/"
     When the prompt receives "new.txt"
     Then "docs/new.txt" exists as an empty file
+    And the File tree already shows "docs/new.txt"
     And Helix shows the "docs/new.txt" document
     When the editor receives "i" while Grove is unfocused
     Then the active Editor view is in Insert mode
-
-  Scenario: Keep Cursor when file creation is refused
-    Given a Workspace containing entries
-      | kind | path            |
-      | file | anchor.txt      |
-      | file | destination.txt |
-    And "anchor.txt" is Active
-    When Helix starts with Grove in that Workspace
-    And the terminal width becomes 140 columns
-    And Grove is focused
-    And Grove receives "n"
-    Then the native prompt is "New file in ./"
-    When the prompt receives "destination.txt"
-    Then Helix shows the message "Cannot create file destination.txt: destination already exists"
-    And "anchor.txt" has Cursor
 
   Scenario: Create a directory beside a file
     Given a Workspace containing entries
@@ -43,6 +29,7 @@ Feature: Manage Workspace files
     Then the native prompt is "New directory in ./"
     When the prompt receives "generated"
     Then "generated" exists as a directory
+    And the File tree already shows "generated"
     And "anchor.txt" has Cursor
 
   Scenario: Treat an unfollowed directory link as a leaf
@@ -88,7 +75,10 @@ Feature: Manage Workspace files
     Then the native prompt is "Rename or move old to"
     When the prompt receives "archive/new"
     Then "old" no longer exists and "archive/new" exists
+    And the File tree already does not show "old"
     And "Workspace root" has Cursor
+    When the "archive" directory is expanded
+    Then the File tree already shows "archive/new"
     When Grove receives "Escape"
     Then the old "old/background.txt" buffer is closed
     And Helix shows the "anchor.txt" document
@@ -105,6 +95,8 @@ Feature: Manage Workspace files
     Then the native prompt is "Rename or move anchor.txt to"
     When the prompt receives "active-new.txt"
     Then "anchor.txt" no longer exists and "active-new.txt" exists
+    And the File tree already does not show "anchor.txt"
+    And the File tree already shows "active-new.txt"
     And Helix shows the "active-new.txt" document
     And the editor contains "dirty-"
 
@@ -141,6 +133,7 @@ Feature: Manage Workspace files
     And Helix keeps the message "Permanently delete link.txt? y to confirm" while idle
     When Grove receives "y"
     Then "link.txt" no longer exists
+    And the File tree already does not show "link.txt"
     And "target.txt" still exists
 
   Scenario: Recursively delete a directory and close its clean buffers
@@ -161,6 +154,7 @@ Feature: Manage Workspace files
     Then Helix shows the message "Permanently delete docs/ recursively? y to confirm"
     When Grove receives "y"
     Then "docs" no longer exists
+    And the File tree already does not show "docs"
     And "Workspace root" has Cursor
     When Grove receives "Escape"
     Then the old "docs/background.txt" buffer is closed
@@ -191,9 +185,58 @@ Feature: Manage Workspace files
     Then Helix shows the message "Permanently delete anchor.txt? y to confirm"
     When Grove receives "y"
     Then "anchor.txt" no longer exists
+    And the File tree already does not show "anchor.txt"
     And the old "anchor.txt" buffer is closed
     And Helix shows the "fallback.txt" document
     And "fallback.txt" already uses the Active file mark
+
+  Scenario: Refuse directory deletion when a descendant is dirty
+    Given a Workspace containing entries
+      | kind | path           |
+      | file | anchor.txt     |
+      | file | docs/dirty.txt |
+    And "anchor.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And Helix opens "docs/dirty.txt"
+    And the editor inserts "dirty-" without saving and returns to Normal mode
+    And Helix opens "anchor.txt"
+    And Grove is focused
+    And Grove receives "Up"
+    And Grove receives "d"
+    Then Helix shows the message "Permanently delete docs/ recursively? y to confirm"
+    When Grove receives "y"
+    Then Helix shows the message "Cannot delete docs: docs/dirty.txt has unsaved changes"
+    And "docs" still exists
+    And "docs" has Cursor
+
+  Rule: Protect file creation
+
+    Background:
+      Given a Workspace containing entries
+        | path            |
+        | anchor.txt      |
+        | destination.txt |
+      And "anchor.txt" is Active
+      When Helix starts with Grove in that Workspace
+      And the terminal width becomes 140 columns
+
+    Scenario: Keep Cursor when the destination exists
+      When Grove is focused
+      And Grove receives "n"
+      Then the native prompt is "New file in ./"
+      When the prompt receives "destination.txt"
+      Then Helix shows the message "Cannot create file destination.txt: destination already exists"
+      And "anchor.txt" has Cursor
+
+    Scenario: Refuse creation when the destination is open in Helix
+      When Helix opens "destination.txt"
+      And Helix opens "anchor.txt"
+      And Grove is focused
+      And Grove receives "n"
+      Then the native prompt is "New file in ./"
+      When the prompt receives "destination.txt"
+      Then Helix shows the message "Cannot create file destination.txt: destination is open in Helix"
+      And "anchor.txt" has Cursor
 
   Rule: Protect source and destination paths
 
@@ -258,6 +301,7 @@ Feature: Manage Workspace files
       Then the native prompt is "Rename or move source.txt to"
       When the prompt receives "../escaped.txt"
       Then "source.txt" no longer exists and "../escaped.txt" exists
+      And the File tree already does not show "source.txt"
 
     Scenario: Refuse rename after the source disappears
       Given a Workspace containing entries
@@ -276,6 +320,22 @@ Feature: Manage Workspace files
       Then Helix shows the message "Cannot rename or move source.txt to renamed.txt: source does not exist"
       And "source.txt" no longer exists
       And "renamed.txt" does not exist
+
+    Scenario: Refuse deletion after the source disappears
+      Given a Workspace containing entries
+        | path       |
+        | anchor.txt |
+        | source.txt |
+      And "anchor.txt" is Active
+      When Helix starts with Grove in that Workspace
+      And Grove is focused
+      And Grove receives "Down"
+      And Grove receives "d"
+      Then Helix shows the message "Permanently delete source.txt? y to confirm"
+      When "source.txt" is deleted
+      And Grove receives "y"
+      Then Helix shows the message "Cannot delete source.txt: source does not exist"
+      And "source.txt" no longer exists
 
     Scenario: Report filesystem failure from refreshed truth
       Given a Workspace containing entries

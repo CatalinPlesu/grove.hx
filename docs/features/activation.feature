@@ -98,7 +98,7 @@ Feature: Activate files
     Then the content of "target.txt" starts with "opened-"
     And Helix Editor view count is 1
 
-  Scenario Outline: Open the Active file in a new split
+  Scenario: Open the Active file in a horizontal split
     Given a Workspace containing entries
       | path       |
       | anchor.txt |
@@ -106,16 +106,11 @@ Feature: Activate files
     And "anchor.txt" is Active
     When Helix starts with Grove in that Workspace
     And Grove is focused
-    And Grove receives "<key>"
-    Then Helix Editor view count is 2
+    And Grove receives "Ctrl-s"
+    Then Helix Editor views are split horizontally
     And Helix shows the "anchor.txt" document
 
-    Examples:
-      | key    |
-      | Ctrl-s |
-      | Ctrl-v |
-
-  Scenario Outline: Open another file in a new split
+  Scenario: Open another file in a vertical split
     Given a Workspace containing entries
       | path       |
       | anchor.txt |
@@ -124,14 +119,9 @@ Feature: Activate files
     When Helix starts with Grove in that Workspace
     And Grove is focused
     And Grove receives "Down"
-    And Grove receives "<key>"
-    Then Helix Editor view count is 2
+    And Grove receives "Ctrl-v"
+    Then Helix Editor views are split vertically
     And Helix shows the "target.txt" document
-
-    Examples:
-      | key    |
-      | Ctrl-s |
-      | Ctrl-v |
 
   Scenario: Follow the Active file after closing a split
     Given a Workspace containing entries
@@ -148,6 +138,18 @@ Feature: Activate files
     Then Helix Editor view count is 1
     And Helix shows the "anchor.txt" document
     And "anchor.txt" uses the Active file mark
+
+  Scenario: Focus the Workspace root after the Active file disappears
+    Given a Workspace containing entries
+      | path       |
+      | anchor.txt |
+      | target.txt |
+    And "anchor.txt" is Active
+    When Helix starts with Grove in that Workspace
+    And "anchor.txt" is deleted
+    Then the File tree does not show "anchor.txt"
+    When Grove is focused
+    Then "Workspace root" has Cursor
 
   Scenario: Keep Grove focused after activating a directory
     Given a Workspace containing entries

@@ -44,6 +44,13 @@ def wheel_scrolls_over_grove(grove: GroveDriver, direction: str) -> None:
     grove.wheel(direction)
 
 
+@when("the Wheel scrolls down over the editor")
+def wheel_scrolls_over_editor(grove: GroveDriver) -> None:
+    frame = grove.capture()
+    column = frame.pane.rail.column + 2 if frame.pane is not None else 2
+    grove.helix.terminal.wheel("down", 5, column)
+
+
 @when(parsers.parse("the Wheel scrolls down {count:d} times over Grove"))
 def wheel_scrolls_repeatedly(grove: GroveDriver, count: int) -> None:
     for _ in range(count):

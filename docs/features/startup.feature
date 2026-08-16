@@ -1,5 +1,38 @@
 Feature: Start Grove
 
+  Scenario: Start in an empty Workspace
+    Given a Workspace containing entries
+      | path |
+    When Helix starts with Grove in that Workspace
+    Then the File tree shows "Workspace root"
+    When Grove is focused
+    Then "Workspace root" has Cursor
+    When Grove receives "n"
+    Then the native prompt is "New file in ./"
+    When the prompt receives "first.txt"
+    Then "first.txt" exists as an empty file
+    And the File tree already shows "first.txt"
+
+  Scenario Outline: Reject invalid Grove settings
+    Given Grove settings
+      | setting   | value   |
+      | <setting> | <value> |
+    When Grove startup is attempted
+    Then Grove startup reports "<message>"
+
+    Examples:
+      | setting | value       | message                        |
+      | side    | middle      | invalid Grove side             |
+      | width   | 15          | invalid Grove width            |
+      | width   | wide text   | invalid Grove width            |
+      | icons   | non-boolean | Grove icons must be a boolean  |
+      | guides  | non-boolean | Grove guides must be a boolean |
+
+  Scenario: Reject a second start
+    Given Grove starts twice
+    When Grove startup is attempted
+    Then Grove startup reports "Grove has already started"
+
   Scenario: Start without an Active file
     Given a Workspace containing entries
       | kind | path       |

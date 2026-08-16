@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 from libtmux.server import Server
-from pytest_bdd import given, parsers, when
+from pytest_bdd import given, parsers, then, when
 
 from tests.support.git import GitFixture, GitStatusSpec
 from tests.support.grove import GroveDriver
-from tests.support.grove_launch import start_grove
-from tests.support.helix import TEST_THEME, HelixSandbox
+from tests.support.grove_launch import start_grove, start_grove_helix
+from tests.support.helix import TEST_THEME, HelixDriver, HelixSandbox
 from tests.support.workspace import EntrySpec, WorkspaceFixture
 
 REPOSITORY = Path(__file__).parents[3]
@@ -25,10 +25,58 @@ def helix_theme() -> str:
     return TEST_THEME
 
 
+@pytest.fixture
+def grove_start_count() -> int:
+    return 1
+
+
 @given("Grove settings", target_fixture="grove_settings")
 def configured_grove(datatable: list[list[str]]) -> dict[str, str]:
-    values = {"enabled": "#t", "disabled": "#f", "left": "'left", "right": "'right"}
-    return {setting: values.get(value, value) for setting, value in datatable[1:]}
+    return dict(datatable[1:])
+
+
+@given("Grove starts twice", target_fixture="grove_start_count")
+def start_twice() -> int:
+    return 2
+
+
+@when("Grove startup is attempted", target_fixture="helix")
+def attempt_start(
+    resources: ExitStack,
+    tmp_path: Path,
+    server: Server,
+    helix_sandbox: HelixSandbox,
+    grove_settings: dict[str, str],
+    grove_start_count: int,
+) -> HelixDriver:
+    workspace = WorkspaceFixture.create(
+        tmp_path / "workspace",
+        [EntrySpec(Path("anchor.txt"))],
+    )
+    resources.callback(workspace.close)
+    helix = start_grove_helix(
+        helix_sandbox,
+        REPOSITORY,
+        server,
+        workspace,
+        active_file=None,
+        settings=grove_settings,
+        starts=grove_start_count,
+        theme=TEST_THEME,
+    )
+    resources.callback(helix.close)
+    return helix
+
+
+@then(parsers.parse('Grove startup reports "{message}"'))
+def startup_reports(helix: HelixDriver, message: str) -> None:
+    helix.terminal.wait(
+        lambda frame: (
+            None
+            if any(message in line for line in frame.lines)
+            else f'Grove startup did not report "{message}"'
+        )
+    )
 
 
 @when("Helix starts with Grove in that Workspace", target_fixture="grove")
@@ -299,6 +347,17 @@ def git_reports_statuses(
 @given(parsers.parse('Git tracks "{name}"'))
 def git_tracks_path(workspace: WorkspaceFixture, name: str) -> None:
     GitFixture(workspace).initialize(name)
+
+
+@given(
+    parsers.parse(
+        'a parent Git repository tracks "{name}" as modified inside the Workspace'
+    )
+)
+def parent_git_tracks_modified(workspace: WorkspaceFixture, name: str) -> None:
+    GitFixture(workspace).initialize(root=workspace.root.parent)
+    with workspace.document_path(name).open("a", encoding="utf-8") as document:
+        document.write("modified\n")
 
 
 @given(parsers.parse('"{name}" is a Git repository'))

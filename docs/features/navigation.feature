@@ -80,7 +80,7 @@ Feature: Navigate the File tree with the keyboard
       | Ctrl-j |
       | Ctrl-y |
 
-  Scenario: Move Cursor down and clamp at the File tree end
+  Scenario Outline: Move Cursor down and clamp at the File tree end
     Given a Workspace containing entries
       | path       |
       | anchor.txt |
@@ -88,13 +88,18 @@ Feature: Navigate the File tree with the keyboard
     And "anchor.txt" is Active
     When Helix starts with Grove in that Workspace
     And Grove is focused
-    And Grove receives "Down"
-    And Grove receives "Down"
+    And Grove receives "<key>"
+    And Grove receives "<key>"
     Then Helix shows the "anchor.txt" document
     When Grove receives "Enter"
     Then Helix shows the "target.txt" document
 
-  Scenario: Move Cursor up and clamp at the File tree start
+    Examples:
+      | key  |
+      | Down |
+      | j    |
+
+  Scenario Outline: Move Cursor up and clamp at the File tree start
     Given a Workspace containing entries
       | path       |
       | anchor.txt |
@@ -102,13 +107,18 @@ Feature: Navigate the File tree with the keyboard
     And "target.txt" is Active
     When Helix starts with Grove in that Workspace
     And Grove is focused
-    And Grove receives "Up"
-    And Grove receives "Up"
+    And Grove receives "<key>"
+    And Grove receives "<key>"
     Then Helix shows the "target.txt" document
     When Grove receives "Down"
     And Grove receives "Enter"
     And the editor inserts "start-" and saves
     Then the content of "anchor.txt" starts with "start-"
+
+    Examples:
+      | key |
+      | Up  |
+      | k   |
 
   Scenario: Clamp page movement at the File tree end
     Given a Workspace containing entries
@@ -177,7 +187,7 @@ Feature: Navigate the File tree with the keyboard
       | 20     | page-20.txt |
       | 30     | page-10.txt |
 
-  Scenario: Expand a directory with Right
+  Scenario Outline: Expand and collapse a directory with horizontal keys
     Given a Workspace containing entries
       | kind      | path              |
       | file      | anchor.txt        |
@@ -187,23 +197,17 @@ Feature: Navigate the File tree with the keyboard
     When Helix starts with Grove in that Workspace
     And Grove is focused
     And Grove receives "Up"
-    And Grove receives "Right"
+    And Grove receives "<expand>"
     Then the File tree shows "folder/inside.txt"
     And "folder" has Cursor
-
-  Scenario: Collapse an expanded directory with Left
-    Given a Workspace containing entries
-      | kind      | path              |
-      | file      | anchor.txt        |
-      | directory | folder            |
-      | file      | folder/inside.txt |
-    And "anchor.txt" is Active
-    When Helix starts with Grove in that Workspace
-    And Grove is focused
-    And Grove receives "Up"
-    And Grove receives "Enter"
-    And Grove receives "Left"
+    When Grove receives "<collapse>"
     Then the File tree does not show "folder/inside.txt"
+    And "folder" has Cursor
+
+    Examples:
+      | expand | collapse |
+      | Right  | Left     |
+      | l      | h        |
 
   Scenario: Collapse an expanded directory with Enter
     Given a Workspace containing entries

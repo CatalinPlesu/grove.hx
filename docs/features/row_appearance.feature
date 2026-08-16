@@ -120,16 +120,6 @@ Feature: Present File tree rows
     And Grove receives "Enter"
     Then "locked" uses the unreadable-directory icon and error foreground
 
-  Scenario: Present an unreadable Workspace root as failed
-    Given a Workspace containing entries
-      | path       |
-      | anchor.txt |
-    And "anchor.txt" is Active
-    When Helix starts with Grove in that Workspace
-    And the Workspace root becomes unreadable
-    Then "Workspace root" uses the unreadable-directory icon and error foreground
-    And "Workspace root" cannot expand
-
   Scenario: Align rows with icons disabled
     Given a Workspace containing entries
       | kind      | path              |

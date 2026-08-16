@@ -82,6 +82,14 @@ Feature: Navigate and resize with the Rail
       Then Helix shows the "page-10.txt" document
       And Grove has width 32
 
+    Scenario: Cancel a Rail drag when terminal pressure removes the Pane
+      When the Rail thumb is pressed
+      And the terminal width becomes 32 columns
+      Then Grove yields the whole terminal to Helix
+      When the terminal width becomes 100 columns
+      And the pointer moves horizontally
+      Then Grove has width 32
+
   Rule: Across Ancestor stack changes
 
     Scenario: Keep the Rail thumb height while the Ancestor stack peels
