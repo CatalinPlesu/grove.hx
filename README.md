@@ -97,13 +97,13 @@ request to open its native file picker before Steel components mount.
 
 `grove-start!` accepts five optional settings:
 
-| Setting | Default | Values |
-| --- | --- | --- |
-| `#:icons` | `#t` | `#t` or `#f` |
-| `#:guides` | `#t` | `#t` or `#f` |
-| `#:side` | `'left` | `'left` or `'right` |
-| `#:theme` | `(grove-theme)` | a `grove-theme` value |
-| `#:width` | `32` | `16` through `64` |
+| Setting | Default | Values | Effect |
+| --- | --- | --- | --- |
+| `#:icons` | `#t` | `#t` or `#f` | Shows file icons. Requires a terminal font with Nerd Fonts 3.3 glyphs. |
+| `#:guides` | `#t` | `#t` or `#f` | Shows ancestor traces and Leaf marks. Cursor (`>`) and Active file (`*`) marks remain visible when disabled. |
+| `#:side` | `'left` | `'left` or `'right` | Places Grove on that side of the editor. |
+| `#:theme` | `(grove-theme)` | A `grove-theme` value | Follows the active Helix theme by default. See [THEMING.md](THEMING.md) for role and color overrides. |
+| `#:width` | `32` | `16` through `64` | Sets the total width, including the Rail that separates Grove from the editor and acts as its scrollbar. |
 
 For example:
 
@@ -117,20 +117,6 @@ For example:
 
 Use this call directly for unconditional startup, or inside the
 `grove-workspace-launch?` guard for workspace-only startup.
-
-The width includes the Rail, which separates Grove from the editor and acts as
-its scrollbar. Icons require a terminal font with Nerd Fonts 3.3 glyphs. Set
-`#:icons` to `#f` if you do not use one.
-
-Guides make File tree structure readable before each label. Ancestor traces
-follow parent directories through nested rows, while Leaf marks distinguish
-rows without an expansion control. Set `#:guides` to `#f` to hide both.
-
-A leading `>` identifies Cursor. An `*` in the Leaf-mark position identifies
-the Active file. These marks remain visible when Guides are disabled.
-
-Grove follows the active Helix theme by default. See [THEMING.md](THEMING.md)
-to override individual Theme roles or provide fixed colors.
 
 ## Controls
 
