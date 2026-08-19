@@ -48,6 +48,10 @@ class VisibleRow:
     def has_unsaved_mark(self) -> bool:
         return self.text.endswith((" +", "…+"))
 
+    @property
+    def has_active_mark(self) -> bool:
+        return "*" in self.text[: self.label_column]
+
     def style_at(self, marker: str) -> Style:
         offset = self.label_column if marker == self.label else self.text.find(marker)
         if offset < 0:
@@ -107,6 +111,13 @@ class Pane:
     rail: Rail
 
     @property
+    def active_file(self) -> VisibleRow | None:
+        return next(
+            (row for row in self.rows if row.has_active_mark),
+            None,
+        )
+
+    @property
     def blank_row(self) -> int | None:
         return next(
             (
@@ -153,7 +164,7 @@ class GroveFrame:
         cursors = tuple(row for row in all_rows if row.text.startswith(">"))
         if len(cursors) > 1:
             raise AssertionError("Grove rendered multiple Cursor marks")
-        if sum("*" in row.text[: row.label_column] for row in all_rows) > 1:
+        if sum(row.has_active_mark for row in all_rows) > 1:
             raise AssertionError("Grove rendered multiple Active file marks")
         thumb_rows = tuple(
             number
@@ -241,6 +252,15 @@ class GroveDriver:
             raise AssertionError("No complete Grove frame observed")
         return result
 
+    def wait_for_active_document(self, fragment: str) -> None:
+        self.wait(
+            lambda frame: (
+                None
+                if fragment in (frame.helix.document or "")
+                else f'Helix did not make "{fragment}" Active'
+            )
+        )
+
     def wait_for_row(self, path: PurePath, *, timeout: float = 10) -> VisibleRow:
         frame = self.wait(
             lambda current: (
@@ -257,11 +277,15 @@ class GroveDriver:
     def focus(self) -> None:
         self.helix.terminal.key("Space")
         self.helix.terminal.write("e")
+        # Focus starts the Cursor on the Active file when Grove can see one,
+        # so waiting for any Cursor accepts a frame observed too early.
         self.wait(
             lambda frame: (
                 None
-                if frame.pane is not None and frame.pane.cursor is not None
-                else "Grove did not render focus"
+                if frame.pane is not None
+                and frame.pane.cursor is not None
+                and frame.pane.active_file in (None, frame.pane.cursor)
+                else "Grove did not render focus on the Active file"
             )
         )
 
@@ -344,6 +368,8 @@ class GroveDriver:
         self._wait_for_workspace_root()
 
     def _wait_for_workspace_root(self) -> None:
+        # Helix fires no hook for a directory change, so only Grove's periodic
+        # refresh notices one.
         self.wait(
             lambda frame: (
                 None
@@ -351,7 +377,8 @@ class GroveDriver:
                 and frame.pane.workspace_root is not None
                 and frame.pane.workspace_root.label == self.workspace.root.name
                 else "Grove did not change Workspace"
-            )
+            ),
+            timeout=30,
         )
 
     def _pane_column(self, frame: GroveFrame | None = None) -> int:

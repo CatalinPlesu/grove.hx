@@ -24,6 +24,9 @@ def grove_receives_file_picker_chord(grove: GroveDriver, query: str) -> None:
     grove.helix.terminal.write("f")
     grove.helix.terminal.write(query)
     grove.helix.terminal.key("Enter")
+    # The picker decides the Active file. Focusing Grove before it finishes
+    # starts the Cursor on the previous Active file.
+    grove.wait_for_active_document(query)
 
 
 @when(parsers.parse('Helix changes the Active file to "{name}"'))

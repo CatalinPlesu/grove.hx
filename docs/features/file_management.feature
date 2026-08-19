@@ -116,15 +116,18 @@ Feature: Manage Workspace files
     Then "link.txt" still exists
     And "link.txt" has Cursor
     When Grove receives "d"
-    And Grove receives "x"
+    Then Helix shows the message "Permanently delete link.txt? y to confirm"
+    When Grove receives "x"
     Then "link.txt" still exists
     And "link.txt" has Cursor
     When Grove receives "d"
-    And the editor is pressed
+    Then Helix shows the message "Permanently delete link.txt? y to confirm"
+    When the editor is pressed
     Then "link.txt" still exists
     And "link.txt" has Cursor
     When Grove receives "d"
-    And the editor pastes "leaked"
+    Then Helix shows the message "Permanently delete link.txt? y to confirm"
+    When the editor pastes "leaked"
     Then "link.txt" still exists
     And "link.txt" has Cursor
     And the editor does not contain "leaked"

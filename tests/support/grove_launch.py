@@ -43,7 +43,12 @@ def start_grove(
         init=init,
     )
     try:
-        return GroveDriver.attach(helix, workspace)
+        grove = GroveDriver.attach(helix, workspace)
+        # Focusing before Helix opens the Active file starts the Cursor on the
+        # Workspace root instead. A file outside it lands there either way.
+        if active_file is not None and active_file.is_relative_to(workspace.root):
+            grove.wait_for_active_document(active_file.name)
+        return grove
     except Exception:
         helix.close()
         raise
