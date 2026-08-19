@@ -13,20 +13,24 @@ Feature: Navigate the File tree with the keyboard
     And Grove receives "Enter"
     Then Helix shows the "active.txt" document
 
-  Scenario Outline: Keep Workspace-root actions inert
+  Scenario Outline: Refuse Workspace-root actions and reveal the Cursor
     Given a Workspace containing entries
-      | path       |
-      | anchor.txt |
-      | target.txt |
+      | kind | path            | count |
+      | file | item-{:02d}.txt | 40    |
     And an Active file outside the Workspace
     When Helix starts with Grove in that Workspace
+    And the terminal height becomes 8 rows
     And Grove is focused
     Then "Workspace root" has Cursor
+    When the Wheel scrolls down 20 times over Grove
+    Then the File tree does not show "item-00.txt"
     When Grove receives "<key>"
     Then the editor still shows the outside file
+    And the File tree shows "item-00.txt"
+    And "Workspace root" has Cursor
     When Grove receives "Down"
     And Grove receives "Enter"
-    Then Helix shows the "anchor.txt" document
+    Then Helix shows the "item-00.txt" document
 
     Examples:
       | key   |

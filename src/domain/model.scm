@@ -439,24 +439,23 @@
     [else
       (update-result model #f)]))
 
+(define (cursor-entry model)
+  (entry-for-id model (model-value-cursor model)))
+
+; Cursor keys reveal the Cursor first, even when they then refuse to act.
 (define (cursor-expansion-requested model action)
   (define revealed (reveal-cursor model))
-  (define entry
-    (entry-for-id revealed (model-value-cursor revealed)))
-  (if
-    (not (and entry (tree.expandable? entry)))
-    (update-result revealed #f)
-    (cond
-      [(equal? action 'expand) (expand-directory revealed entry)]
-      [(equal? action 'collapse) (collapse-directory revealed entry)]
-      [else (error "invalid Cursor expansion action")])))
+  (define entry (cursor-entry revealed))
+  (cond
+    [(not (and entry (tree.expandable? entry)))
+      (update-result revealed #f)]
+    [(equal? action 'expand) (expand-directory revealed entry)]
+    [(equal? action 'collapse) (collapse-directory revealed entry)]
+    [else (error "invalid Cursor expansion action")]))
 
 (define (cursor-open-requested model mode)
   (define revealed (reveal-cursor model))
-  (activate-entry
-    revealed
-    (entry-for-id revealed (model-value-cursor revealed))
-    mode))
+  (activate-entry revealed (cursor-entry revealed) mode))
 
 (define (mutation-parent-id entry)
   (define source-id (tree.entry-id entry))
@@ -469,41 +468,28 @@
 
 (define (cursor-mutation-requested model action)
   (define revealed (reveal-cursor model))
-  (define entry
-    (entry-for-id revealed (model-value-cursor revealed)))
+  (define entry (cursor-entry revealed))
   (define source-id (and entry (tree.entry-id entry)))
-  (cond
-    [(not entry) (update-result model #f)]
-    [(member action '(file directory))
-      (update-result
-        revealed
-        (command
-          'create
-          action
-          (model-value-root model)
-          (mutation-parent-id entry)))]
-    [(equal? action 'rename)
-      (if
-        (path.root-id? source-id)
-        (update-result model #f)
-        (update-result
-          revealed
-          (command
-            'rename
-            (model-value-root model)
-            source-id)))]
-    [(equal? action 'delete)
-      (if
-        (path.root-id? source-id)
-        (update-result model #f)
-        (update-result
-          revealed
+  (define root-value (model-value-root revealed))
+  ; The Workspace root is the one row that cannot be renamed or deleted.
+  (define (outside-root command-value)
+    (and (not (path.root-id? source-id)) command-value))
+  (update-result
+    revealed
+    (cond
+      [(not entry) #f]
+      [(member action '(file directory))
+        (command 'create action root-value (mutation-parent-id entry))]
+      [(equal? action 'rename)
+        (outside-root (command 'rename root-value source-id))]
+      [(equal? action 'delete)
+        (outside-root
           (command
             'delete
-            (model-value-root model)
+            root-value
             source-id
-            (tree.expandable-kind? (tree.entry-kind entry)))))]
-    [else (error "invalid Cursor mutation action")]))
+            (tree.expandable-kind? (tree.entry-kind entry))))]
+      [else (error "invalid Cursor mutation action")])))
 
 (define (resize-to-requested model requested-width)
   (define current-geometry (model-value-geometry model))
