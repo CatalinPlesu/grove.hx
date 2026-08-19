@@ -1,7 +1,7 @@
 (require (prefix-in path. "path.scm"))
 (require (prefix-in natural. "natural.scm"))
 
-(provide file-tree-entry entry-id entry-kind
+(provide entry entry-id entry-kind
   build
   unreadable-root
   find
@@ -11,10 +11,7 @@
   expandable-kind?
   expandable?)
 
-(struct file-tree-entry-value (id kind))
-
-(define entry-id file-tree-entry-value-id)
-(define entry-kind file-tree-entry-value-kind)
+(struct entry (id kind))
 
 (define (file-kind? kind)
   (and (member kind '(file file-link)) #t))
@@ -31,8 +28,6 @@
   (and
     (not (path.root-id? (entry-id entry)))
     (expandable-kind? (entry-kind entry))))
-
-(define file-tree-entry file-tree-entry-value)
 
 (define (entry-rank entry final?)
   (if
@@ -63,12 +58,12 @@
 
 (define (build entries)
   (cons
-    (file-tree-entry path.root-id 'directory)
+    (entry path.root-id 'directory)
     (sort entries ordered-before?)))
 
 (define (unreadable-root)
   (list
-    (file-tree-entry path.root-id 'unreadable-directory)))
+    (entry path.root-id 'unreadable-directory)))
 
 (define (find file-tree id)
   (findf

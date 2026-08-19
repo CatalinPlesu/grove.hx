@@ -19,10 +19,10 @@
       (any? predicate (cdr values)))))
 
 (define (file id)
-  (tree.file-tree-entry id 'file))
+  (tree.entry id 'file))
 
 (define (directory id)
-  (tree.file-tree-entry id 'directory))
+  (tree.entry id 'directory))
 
 (check
   "File tree kind predicates return booleans"

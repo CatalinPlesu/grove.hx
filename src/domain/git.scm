@@ -2,13 +2,8 @@
 
 (provide path-status build status-for)
 
-(struct path-status-value (id status))
-(struct status-value (exact-statuses descendant-statuses))
-
-(define path-status-id path-status-value-id)
-(define path-status-status path-status-value-status)
-
-(define path-status path-status-value)
+(struct path-status (id status))
+(struct status (exact-statuses descendant-statuses))
 
 (define (semantic-status raw)
   (cond
@@ -62,7 +57,7 @@
   (let loop ([remaining path-statuses] [exact (hash)] [descendants (hash)])
     (if
       (null? remaining)
-      (status-value exact descendants)
+      (status exact descendants)
       (let* ([path-status (car remaining)]
              [id (path-status-id path-status)]
              [raw-status (path-status-status path-status)]
@@ -78,7 +73,7 @@
     #f
     (let ([exact
             (hash-try-get
-              (status-value-exact-statuses git-status)
+              (status-exact-statuses git-status)
               id)])
       (if
         (equal? exact 'ignored)
@@ -87,4 +82,4 @@
           exact
           (and
             directory?
-            (hash-try-get (status-value-descendant-statuses git-status) id)))))))
+            (hash-try-get (status-descendant-statuses git-status) id)))))))

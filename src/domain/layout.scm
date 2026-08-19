@@ -23,7 +23,7 @@
   rail-page-anchor)
 
 (struct geometry-value (x y width height))
-(struct slot-value (entry pinned?))
+(struct slot (entry pinned?))
 (struct layout-value
   (entries geometry side width
     anchor
@@ -42,8 +42,6 @@
 (define side layout-value-side)
 (define pane-slots layout-value-pane-slots)
 (define ordinary-capacity layout-value-ordinary-capacity)
-(define slot-entry slot-value-entry)
-(define slot-pinned? slot-value-pinned?)
 (define maximum-start layout-value-maximum-start)
 
 (define (x layout)
@@ -87,7 +85,7 @@
       (loop
         (cdr remaining)
         (cons
-          (slot-value (car remaining) pinned?)
+          (slot (car remaining) pinned?)
           result)))))
 
 (define (prepend-all prefix suffix)

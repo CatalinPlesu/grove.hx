@@ -31,9 +31,9 @@
     [(string=? name ".git")
       '()]
     [(read-dir-entry-is-symlink? entry)
-      (list (tree.file-tree-entry id (symlink-kind entry)))]
+      (list (tree.entry id (symlink-kind entry)))]
     [(read-dir-entry-is-file? entry)
-      (list (tree.file-tree-entry id 'file))]
+      (list (tree.entry id 'file))]
     [(read-dir-entry-is-dir? entry)
       (define expanded?
         (expansion.contains? expansion-value id))
@@ -50,7 +50,7 @@
           'unreadable-directory
           'directory))
       (cons
-        (tree.file-tree-entry id kind)
+        (tree.entry id kind)
         (if descendants descendants '()))]
     [else
       '()]))
