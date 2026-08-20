@@ -1,6 +1,6 @@
-(provide parse change-path change-status)
+(require (prefix-in git. "../../domain/git.scm"))
 
-(struct change (path status))
+(provide parse)
 
 (define (strip-terminal-lf text)
   (define text-length (string-length text))
@@ -64,12 +64,12 @@
               (not (string=? (car (cdr records)) ""))
               (loop
                 (cdr (cdr records))
-                (cons (change path status) changes)))]
+                (cons (git.path-status path status) changes)))]
           [(string=? code "!!")
             (loop
               (cdr records)
               (cons
-                (change
+                (git.path-status
                   path
                   (if directory? 'ignored-tree 'ignored))
                 changes))]
@@ -77,7 +77,7 @@
             (define status (decode-status code))
             (and status
               (loop (cdr records)
-                (cons (change path status) changes)))])])))
+                (cons (git.path-status path status) changes)))])])))
 
 (define (parse output directory-prefix)
   (parse-records output (strip-terminal-lf directory-prefix)))

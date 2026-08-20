@@ -159,9 +159,9 @@
       (and
         error-icon
         (hash-ref current-theme 'filesystem-error-foreground))
-      (and
-        (member git-status '(conflict deleted modified created))
-        (hash-ref current-theme git-status))))
+      ; Colored statuses are exactly the Theme roles named after them.
+      ; Ignored has no role and dims the label instead.
+      (and git-status (hash-try-get current-theme git-status))))
   (define label-base
     (if
       label-foreground

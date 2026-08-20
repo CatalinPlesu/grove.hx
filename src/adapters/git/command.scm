@@ -33,46 +33,29 @@
     (with-stderr null-port)
     with-stdout-piped))
 
+; Every step here fails the same way: swallow the error and report #f. A macro
+; keeps that inline, because ADR 0001 rules out an indirect helper returning
+; the Ok and Err structs that spawn-process and process-wait produce.
+(define-syntax attempt
+  (syntax-rules ()
+    [(_ body ...) (with-handler (lambda (_cause) #f) (begin body ...))]))
+
 (define (run arguments)
   (define null-port
-    (with-handler
-      (lambda (_cause) #f)
-      (open-output-file "/dev/null" #:exists 'append)))
+    (attempt (open-output-file "/dev/null" #:exists 'append)))
   (and
     null-port
     (let ([spawn-result
-            (with-handler
-              (lambda (_cause) #f)
-              (spawn-process (prepare-command arguments null-port)))])
-      (with-handler
-        (lambda (_cause) #f)
-        (close-output-port null-port))
+            (attempt (spawn-process (prepare-command arguments null-port)))])
+      (attempt (close-output-port null-port))
       (and
         spawn-result
         (not (Err? spawn-result))
         (let* ([child (Ok->value spawn-result)]
-               [port
-                 (with-handler
-                   (lambda (_cause) #f)
-                   (child-stdout child))]
-               [output
-                 (and
-                   port
-                   (with-handler
-                     (lambda (_cause) #f)
-                     (read-port-to-string port)))]
-               [closed?
-                 (and
-                   port
-                   (with-handler
-                     (lambda (_cause) #f)
-                     (begin
-                       (close-input-port port)
-                       #t)))]
-               [wait-result
-                 (with-handler
-                   (lambda (_cause) #f)
-                   (process-wait child))])
+               [port (attempt (child-stdout child))]
+               [output (and port (attempt (read-port-to-string port)))]
+               [closed? (and port (attempt (close-input-port port) #t))]
+               [wait-result (attempt (process-wait child))])
           (and
             output
             closed?

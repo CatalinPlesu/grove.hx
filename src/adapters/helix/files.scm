@@ -44,7 +44,7 @@
     [(read-dir-iter-entry? observation) "destination already exists"]
     [else #f]))
 
-(define (matching-documents source)
+(define (documents-under source)
   (filter
     (lambda (document-id)
       (define candidate (editor-document->path document-id))
@@ -59,26 +59,29 @@
 
 (define (close-affected! documents)
   (define active-path (host.active-path))
-  (define paths
-    (sort
-      (map editor-document->path documents)
-      (lambda (left right)
-        (and
-          (not (equal? left active-path))
-          (equal? right active-path)))))
-  (when (pair? paths)
-    (apply helix.buffer-close paths)))
+  (define (active? path) (equal? path active-path))
+  (define paths (map editor-document->path documents))
+  (define ordered
+    (append
+      (filter (lambda (path) (not (active? path))) paths)
+      (filter active? paths)))
+  (when (pair? ordered)
+    (apply helix.buffer-close ordered)))
 
 (define (refuse! description reason)
   (set-error!
     (string-append "Cannot " description ": " reason)))
 
-(define (refuse-dirty! description root dirty-path)
-  (refuse!
-    description
+(define (dirty-problem root documents)
+  (define document (first-dirty documents))
+  (and
+    document
     (string-append
-      (or (path.id-for-path root dirty-path) dirty-path)
+      (or (path.id-for-path root document) document)
       " has unsaved changes")))
+
+(define (occupied-problem path)
+  (and (pair? (documents-under path)) "destination is open in Helix"))
 
 (define (commit! description refresh! mutate! reconcile!)
   (define error-value
@@ -106,90 +109,77 @@
       "create "
       (if (equal? kind 'file) "file " "directory ")
       destination-id))
-  (cond
-    [(pair? (matching-documents destination))
-      (refuse! description "destination is open in Helix")]
-    [else
-      (define destination-problem
-        (destination-error (observe-entry destination)))
-      (if
-        destination-problem
-        (refuse! description destination-problem)
-        (commit!
-          description
-          refresh!
-          (lambda ()
-            (if
-              (equal? kind 'file)
-              (call-with-output-file destination (lambda (_) #t))
-              (create-directory! destination)))
-          (lambda ()
-            (when (equal? kind 'file)
-              (host.open-file! destination 'normal)
-              (dispatch! model.focus-released)))))]))
+  (define problem
+    (or
+      (occupied-problem destination)
+      (destination-error (observe-entry destination))))
+  (if
+    problem
+    (refuse! description problem)
+    (commit!
+      description
+      refresh!
+      (lambda ()
+        (if
+          (equal? kind 'file)
+          (call-with-output-file destination (lambda (_) #t))
+          (create-directory! destination)))
+      (lambda ()
+        (when (equal? kind 'file)
+          (host.open-file! destination 'normal)
+          (dispatch! model.focus-released))))))
 
 (define (execute-rename! root source-id destination-id refresh!)
   (define source (path.path-for-id root source-id))
   (define destination (path.path-for-id root destination-id))
   (define description
     (string-append "rename or move " source-id " to " destination-id))
-  (define source-problem
-    (source-error (observe-entry source)))
-  (define documents (matching-documents source))
+  (define documents (documents-under source))
   (define active-source? (equal? source (host.active-path)))
-  (define dirty-path
-    (and (not active-source?) (first-dirty documents)))
+  (define problem
+    (or
+      (source-error (observe-entry source))
+      (and (not active-source?) (dirty-problem root documents))
+      (occupied-problem destination)
+      (destination-error (observe-entry destination))))
   (cond
-    [source-problem
-      (refuse! description source-problem)]
-    [dirty-path
-      (refuse-dirty! description root dirty-path)]
-    [(pair? (matching-documents destination))
-      (refuse! description "destination is open in Helix")]
+    [problem
+      (refuse! description problem)]
+    [active-source?
+      (commit!
+        description
+        refresh!
+        (lambda () (helix.move destination))
+        (lambda () #t))]
     [else
-      (define destination-problem
-        (destination-error (observe-entry destination)))
-      (cond
-        [destination-problem
-          (refuse! description destination-problem)]
-        [active-source?
-          (commit!
-            description
-            refresh!
-            (lambda () (helix.move destination))
-            (lambda () #t))]
-        [else
-          (commit!
-            description
-            refresh!
-            (lambda ()
-              (rename-file-or-directory! source destination))
-            (lambda () (close-affected! documents)))])]))
+      (commit!
+        description
+        refresh!
+        (lambda ()
+          (rename-file-or-directory! source destination))
+        (lambda () (close-affected! documents)))]))
 
 (define (execute-delete! root source-id refresh!)
   (define source (path.path-for-id root source-id))
   (define description (string-append "delete " source-id))
   (define source-observation (observe-entry source))
-  (define source-problem (source-error source-observation))
-  (cond
-    [source-problem
-      (refuse! description source-problem)]
-    [else
-      (define kind (entry-kind source-observation))
-      (define documents (matching-documents source))
-      (define dirty-path (first-dirty documents))
-      (if
-        dirty-path
-        (refuse-dirty! description root dirty-path)
-        (commit!
-          description
-          refresh!
-          (lambda ()
-            (if
-              (equal? kind 'directory)
-              (delete-directory! source)
-              (delete-file! source)))
-          (lambda () (close-affected! documents))))]))
+  (define documents (documents-under source))
+  (define problem
+    (or
+      (source-error source-observation)
+      (dirty-problem root documents)))
+  (if
+    problem
+    (refuse! description problem)
+    (commit!
+      description
+      refresh!
+      (lambda ()
+        (if
+          (equal? (entry-kind source-observation) 'directory)
+          (delete-directory! source)
+          (delete-file! source)))
+      (lambda () (close-affected! documents)))))
 
 (define (prompt-create! kind root parent-id dispatch! refresh!)
   (define label

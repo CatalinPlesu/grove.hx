@@ -1,22 +1,27 @@
-(require (prefix-in observer. "git/observer.scm"))
+(require (prefix-in command. "git/command.scm"))
+(require (prefix-in porcelain. "git/porcelain.scm"))
 (require (prefix-in git. "../domain/git.scm"))
 
 (provide observe)
 
-(define (path-statuses-for changes)
-  (let loop ([remaining changes] [result '()])
-    (if
-      (null? remaining)
-      (reverse result)
-      (let ([change (car remaining)])
-        (loop
-          (cdr remaining)
-          (cons
-            (git.path-status
-              (observer.change-path change)
-              (observer.change-status change))
-            result))))))
-
 (define (observe root)
-  (define changes (observer.observe root))
-  (and changes (git.build (path-statuses-for changes))))
+  (define directory-prefix
+    (command.run (list "-C" root "rev-parse" "--show-prefix")))
+  (define status-output
+    (and
+      directory-prefix
+      (command.run
+        (list "-C" root "status"
+          "--porcelain=v1"
+          "-z"
+          "--untracked-files=all"
+          "--ignored=matching"
+          "--"
+          "."))))
+  (define path-statuses
+    (and
+      status-output
+      (with-handler
+        (lambda (_cause) #f)
+        (porcelain.parse status-output directory-prefix))))
+  (and path-statuses (git.build path-statuses)))
