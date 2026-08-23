@@ -1,7 +1,7 @@
 (require "helix/components.scm")
 (require (prefix-in helix. "src/adapters/helix.scm"))
 
-(provide grove-theme grove-start! grove-focus!)
+(provide grove-theme grove-start! grove-focus! grove-toggle-pinned!)
 
 (struct grove-theme-value (sources))
 
@@ -97,3 +97,8 @@
 ;;Focus Grove.
 (define (grove-focus!)
   (helix.focus!))
+
+;;@doc
+;;Toggle Grove's show state between pinned (always visible) and unpinned (visible only when focused).
+(define (grove-toggle-pinned!)
+  (helix.toggle-pinned!))
