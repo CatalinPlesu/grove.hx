@@ -87,11 +87,11 @@ Workspace:
 (keymap (global)
   (normal
     (space
-      (e ":grove-focus!"))))
+      (e ":grove-focus!")
+      (E ":grove-toggle-pinned!"))))
 ```
 
-This binds `Space e` to Grove. Merge the binding into your existing keymap or
-choose another chord if `Space e` is already taken.
+This binds `Space e` to Grove and `Space E` to toggle Grove visibility. Merge the binding into your existing keymap or choose another chord if `Space e`/`Space E` is already taken.
 
 Do not use `hx .` with either mode. Helix treats a positional directory as a
 request to open its native file picker before Steel components mount.

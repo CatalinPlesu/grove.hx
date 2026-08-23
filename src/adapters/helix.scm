@@ -103,7 +103,6 @@
       (dispatch! model.focus-frame-observed snapshot geometry))
     (dispatch! model.geometry-observed geometry))
   (define model-at-render *model*)
-  ; (define current-layout (model.resolved-layout model-at-render))
   (define current-layout
     (and
       (or *pinned?*

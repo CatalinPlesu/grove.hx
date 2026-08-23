@@ -17,8 +17,7 @@
       (set-editor-clip-left! width)
       (set-editor-clip-right! width))
     (set! *clip-width* width)
-    ; Redraw in case the panel is not pinned.
-    ; Otherwise input is required to fix the editor alignment.
+    ; This redraw fixes the editor's alignment in case the grove file tree is not pinned.
     (helix.redraw)))
 
 (define (install! side render! handle-event!)
