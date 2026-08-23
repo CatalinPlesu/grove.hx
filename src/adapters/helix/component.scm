@@ -2,6 +2,7 @@
 (require "helix/ext.scm")
 (require "helix/misc.scm")
 (require "helix/editor.scm")
+(require (prefix-in helix. "helix/commands.scm"))
 (require (prefix-in layout. "../../domain/layout.scm"))
 
 (provide install! apply-clip!)
@@ -15,7 +16,10 @@
     (if (equal? *clip-side* 'left)
       (set-editor-clip-left! width)
       (set-editor-clip-right! width))
-    (set! *clip-width* width)))
+    (set! *clip-width* width)
+    ; Redraw in case the panel is not pinned.
+    ; Otherwise input is required to fix the editor alignment.
+    (helix.redraw)))
 
 (define (install! side render! handle-event!)
   (set! *clip-side* side)

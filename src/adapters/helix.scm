@@ -14,7 +14,7 @@
 (require (prefix-in theme. "helix/theme.scm"))
 (require (prefix-in component. "helix/component.scm"))
 
-(provide start! focus!)
+(provide start! focus! toggle-pinned!)
 
 (define REFRESH-INTERVAL-MS 2000)
 
@@ -22,6 +22,7 @@
 (define *latest-frame* #f)
 (define *focus-next-frame?* #f)
 (define *started?* #f)
+(define *pinned?* #f)
 (define *theme-sources* '())
 
 (struct rendered-frame (root layout))
@@ -102,7 +103,12 @@
       (dispatch! model.focus-frame-observed snapshot geometry))
     (dispatch! model.geometry-observed geometry))
   (define model-at-render *model*)
-  (define current-layout (model.resolved-layout model-at-render))
+  ; (define current-layout (model.resolved-layout model-at-render))
+  (define current-layout
+    (and
+      (or *pinned?*
+          (model.focused? model-at-render))
+      (model.resolved-layout model-at-render)))
   (if current-layout
     (begin
       (component.apply-clip! (layout.width current-layout))
@@ -156,4 +162,9 @@
   (when *model*
     (set! *focus-next-frame?* #t)
     (helix.redraw))
+  void)
+
+(define (toggle-pinned!)
+  (set! *pinned?* (not *pinned?*))
+  (helix.redraw)
   void)
